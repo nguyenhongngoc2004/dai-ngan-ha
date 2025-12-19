@@ -256,21 +256,21 @@ hands.onResults(results => {
   tips.forEach(i => open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
   const avgOpen = open / tips.length;
 
-  // tính khoảng cách ngón cái-chỉ
-  const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-
-  // ① ưu tiên pinch → zoom vào hành tinh
-  if(pinch < 0.06){
+  // ① nắm tay → zoom vào hành tinh
+  if(avgOpen < 0.18){
     state = "PHOTO";
-    moveToPlanet(currentPlanetIndex);
+    moveToPlanet(currentPlanetIndex);  // zoom vào hành tinh hiện tại
   } 
-  // ② bung tay → xoay toàn cảnh
-  else if(avgOpen > 0.25){
+  // ② bung tay → zoom ra toàn cảnh
+  else if(avgOpen > 0.28){
+    state = "TREE";   // zoom ra
+  }
+  // ③ mở tay → chuyển hành tinh tiếp theo
+  else {
     state = "ROTATE";
-  } 
-  // ③ nắm tay → zoom ra toàn cảnh
-  else{
-    state = "TREE";
+    currentPlanetIndex++;
+    if(currentPlanetIndex >= planets.length) currentPlanetIndex = 0;
+    moveToPlanet(currentPlanetIndex);
   }
 });
 
