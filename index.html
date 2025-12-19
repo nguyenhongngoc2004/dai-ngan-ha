@@ -233,7 +233,6 @@ const stateText={ROTATE:"✋ Xoay tay: Xoay dải ngân hà",PHOTO:"👌 Chụm 
 const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
 
-let lastHandX=null,lastSwipeTime=0,currentPlanetIndex=0,targetCameraPos=new THREE.Vector3();
 let initialLoad = true;
 
 hands.onResults(results => {
@@ -256,10 +255,19 @@ hands.onResults(results => {
   tips.forEach(i => open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
   const avgOpen = open / tips.length;
   const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-
-  if(avgOpen > 0.25) state = "ROTATE";   // bung tay
-  else if(avgOpen < 0.25) state = "TREE"; // nắm tay
-  else if(pinch < 0.05) state = "PHOTO";  // pinch
+  
+if(avgOpen > 0.25) {
+    state = "ROTATE";   
+    targetCameraPos.copy(initialCameraPos); // luôn giữ toàn cảnh
+} 
+else if(avgOpen < 0.25) {
+    state = "TREE";     
+    targetCameraPos.copy(initialCameraPos); // zoom ra toàn cảnh
+} 
+else if(pinch < 0.05) {
+    state = "PHOTO";    
+    moveToPlanet(currentPlanetIndex);       // zoom vào hành tinh
+}
 });
 
 function moveToPlanet(index){
