@@ -37,6 +37,8 @@ body { margin:0; overflow:hidden; background:black; }
 <canvas id="handCanvas" width="160" height="120"></canvas>
 
 <script>
+
+let lastState = "ROTATE";
 // ================= THREE.JS =================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -231,7 +233,11 @@ const canvasEl=document.getElementById("handCanvas");
 const ctx2=canvasEl.getContext("2d");
 let state="ROTATE",smoothState="ROTATE";
 const noteEl=document.getElementById("gestureNote");
-const stateText={ROTATE:"✋ Xoay tay: Xoay dải ngân hà",PHOTO:"👌 Chụm tay: Phóng to hành tinh",HEART:"❤️ Hai tay hình tim: Kích hoạt năng lượng",TREE:"✊ Nắm tay: Thu nhỏ hệ sao"};
+const stateText={
+  ROTATE:"✋ Xoay tay: Chuyển hành tinh",  // tay mở vừa → chuyển hành tinh
+  TREE:"✊ Bung tay: Zoom ra toàn cảnh",    // bung tay → zoom ra
+  PHOTO:"🤏 Nắm tay: Zoom vào hành tinh"  // nắm tay → zoom vào
+};
 
 const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
@@ -251,26 +257,27 @@ hands.onResults(results => {
   const wrist = lm[0];
   const tips = [8,12,16,20];
 
-  // tính độ mở tay
   let open = 0;
   tips.forEach(i => open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
   const avgOpen = open / tips.length;
 
-  // ① nắm tay → zoom vào hành tinh
-  if(avgOpen < 0.18){
-    state = "PHOTO";
-    moveToPlanet(currentPlanetIndex);  // zoom vào hành tinh hiện tại
-  } 
-  // ② bung tay → zoom ra toàn cảnh
-  else if(avgOpen > 0.28){
-    state = "TREE";   // zoom ra
-  }
-  // ③ mở tay → chuyển hành tinh tiếp theo
-  else {
-    state = "ROTATE";
-    currentPlanetIndex++;
-    if(currentPlanetIndex >= planets.length) currentPlanetIndex = 0;
-    moveToPlanet(currentPlanetIndex);
+  let newState = lastState;
+
+  if(avgOpen < 0.18) newState = "PHOTO";    // nắm tay
+  else if(avgOpen > 0.28) newState = "TREE"; // bung tay
+  else newState = "ROTATE";                 // mở tay vừa phải
+
+  // chỉ update state khi thay đổi để tránh nhảy nhiều lần/frame
+  if(newState !== lastState){
+    if(newState === "ROTATE" && lastState !== "ROTATE"){
+      // mỗi lần vào ROTATE từ trạng thái khác → chuyển hành tinh
+      currentPlanetIndex++;
+      if(currentPlanetIndex >= planets.length) currentPlanetIndex = 0;
+      moveToPlanet(currentPlanetIndex);
+    }
+
+    state = newState;
+    lastState = newState;
   }
 });
 
