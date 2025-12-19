@@ -50,6 +50,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 scene.add(new THREE.AmbientLight(0xffffff,0.25));
 
+const noise = new SimplexNoise();
+
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
