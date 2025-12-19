@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hyper-Real Galaxy + 7 Planets</title>
+<title>Galaxy + 7 Planets</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -117,7 +117,7 @@ function createPlanet(radius, dist, speed, options={}){
   return pivot;
 }
 
-// 7 hành tinh với glow và màu rõ
+// 7 hành tinh
 createPlanet(2,20,0.02,{color:0xaaaaaa});
 createPlanet(2.5,35,0.018,{color:0xffcc88});
 createPlanet(3,50,0.016,{color:0x2266ff,atmosphere:0x66ccff});
@@ -199,17 +199,18 @@ const stateText={ROTATE:"✋ Xoay tay: Xoay galaxy",PHOTO:"👌 Chụm tay: Zoom
 const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
 
-let lastHandX=null,lastSwipeTime=0,currentPlanetIndex=0,targetCameraPos=new THREE.Vector3();
+let lastHandX=null,lastSwipeTime=0,currentPlanetIndex=0;
+let targetCameraPos = new THREE.Vector3(0,200,400);
 
 hands.onResults(results=>{
   ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
   if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
-  if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){state="TREE";return;}
+  if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){state="TREE"; return;}
   if(results.multiHandLandmarks.length===2){
     const h1=results.multiHandLandmarks[0],h2=results.multiHandLandmarks[1];
     const dIndex=Math.hypot(h1[8].x-h2[8].x,h1[8].y-h2[8].y);
     const dThumb=Math.hypot(h1[4].x-h2[4].x,h1[4].y-h2[4].y);
-    if(dIndex<0.15&&dThumb<0.15){state="HEART";return;}
+    if(dIndex<0.15&&dThumb<0.15){state="HEART"; return;}
   }
   const lm=results.multiHandLandmarks[0],wrist=lm[0];
   const tips=[8,12,16,20];
@@ -233,8 +234,12 @@ function moveToPlanet(index){
   if(index<0) index=planets.length-1;
   if(index>=planets.length) index=0;
   currentPlanetIndex=index;
-  planets[currentPlanetIndex].userData.planet.getWorldPosition(targetCameraPos);
-  targetCameraPos.add(new THREE.Vector3(0,6,14));
+  if(state==="PHOTO"){
+    planets[currentPlanetIndex].userData.planet.getWorldPosition(targetCameraPos);
+    targetCameraPos.add(new THREE.Vector3(0,6,14));
+  } else {
+    targetCameraPos.set(0,200,400);
+  }
 }
 
 const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:videoEl});},width:640,height:480});
