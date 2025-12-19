@@ -28,6 +28,7 @@
 </head>
 
 <body style="margin:0; overflow:hidden; background:black;">
+<div id="gestureNote"></div>
 <video id="video" style="display:none;"></video>
 <canvas
   id="handCanvas"
@@ -266,7 +267,7 @@ function createMilkyWay() {
 
   const arms = 4;            // số nhánh xoắn
   const radius = 120;
-  const thicknes = 0.08;
+  const thickness = 0.08;
 
   for (let i = 0; i < starCount; i++) {
     const r = Math.random() * radius;
@@ -402,7 +403,30 @@ if (lastHandX !== null) {
   }
 }
 
-lastHandX = indexTip.x;
+lastHandX = indexTip.x
+});
+
+// ================= START CAMERA (CHỈ 1 LẦN) =================
+const cameraMP = new Camera(videoEl, {
+  onFrame: async () => {
+    await hands.send({ image: videoEl });
+  },
+  width: 640,
+  height: 480
+});
+cameraMP.start();
+
+function moveToPlanet(index) {
+  if (index < 0) index = planets.length - 1;
+  if (index >= planets.length) index = 0;
+
+  currentPlanetIndex = index;
+
+  const p = planets[currentPlanetIndex].userData.planet;
+  p.getWorldPosition(targetCameraPos);
+
+  targetCameraPos.add(new THREE.Vector3(0, 6, 14));
+}
 
 // ================= ANIMATE =================
 const lookTarget = new THREE.Vector3();
@@ -450,3 +474,4 @@ window.addEventListener("resize", () => {
 </script>
 </body>
 </html>
+
