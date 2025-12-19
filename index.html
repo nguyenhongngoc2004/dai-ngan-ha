@@ -143,12 +143,22 @@ createPlanet(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity
   }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const mat=new THREE.PointsMaterial({size:1,color:0xffffff,opacity:0.6,transparent:true,blending:THREE.AdditiveBlending});
+
+  const mat=new THREE.PointsMaterial({
+    size:1.2,                     // tăng size nếu muốn
+    map: createStarTexture(),      // dùng texture tròn mịn
+    transparent:true,
+    opacity:0.6,
+    blending:THREE.AdditiveBlending,
+    depthWrite:false,
+    sizeAttenuation:true
+  });
+
   scene.add(new THREE.Points(geo,mat));
 })();
 
 function createStarTexture() {
-  const size = 128;   // tăng từ 64 → mượt hơn
+  const size = 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
@@ -160,7 +170,10 @@ function createStarTexture() {
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,size,size);
 
-  return new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter; // mịn hơn
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
 }
 
 function createMilkyWay(){
@@ -268,6 +281,14 @@ cameraMP.start();
 
 // ================= ANIMATE =================
 const lookTarget = new THREE.Vector3();
+
+// ban đầu đứng xa nhìn dải ngân hà
+targetCameraPos.set(0, 50, 150);
+camera.position.copy(targetCameraPos);
+
+// lookTarget ban đầu cũng ở trung tâm dải ngân hà
+lookTarget.set(0, 0, 0);
+camera.lookAt(lookTarget);
 
 function animate(){
   requestAnimationFrame(animate);
