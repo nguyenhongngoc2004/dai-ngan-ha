@@ -8,7 +8,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/simplex-noise@3.0.0/simplex-noise.min.js"></script>
 <style>
 body { margin:0; overflow:hidden; background:black; }
 #gestureNote {
@@ -50,8 +49,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 scene.add(new THREE.AmbientLight(0xffffff,0.25));
 
-const noise = new SimplexNoise();
-
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
@@ -71,58 +68,55 @@ const sun = new THREE.Mesh(
 );
 galaxy.add(sun);
 
-// ================= Planets Realistic với đặc trưng =================
+// ================= PLANETS =================
 const planets = [];
-const noise = new SimplexNoise(); // SimplexNoise cho bề mặt lồi lõm
 
-function createPlanetRealistic(radius, dist, speed, options = {}) {
+function createPlanet(radius, dist, speed, options={}){
   const pivot = new THREE.Object3D();
   pivot.userData.speed = speed;
 
-  // Geometry nhiều segments để displacement mượt
-  const geo = new THREE.SphereGeometry(radius, 128, 128);
-
-  // Vertex displacement theo Simplex noise
-  for (let i = 0; i < geo.attributes.position.count; i++) {
-    const v = new THREE.Vector3().fromBufferAttribute(geo.attributes.position, i);
-    const n = noise.noise3D(
-      v.x * (options.noiseScale ?? 0.5),
-      v.y * (options.noiseScale ?? 0.5),
-      v.z * (options.noiseScale ?? 0.5)
-    );
-    const offset = n * (options.displacementScale ?? 0.5);
-    v.multiplyScalar(1 + offset);
-    geo.attributes.position.setXYZ(i, v.x, v.y, v.z);
-  }
-  geo.computeVertexNormals();
-
   const mat = new THREE.MeshPhysicalMaterial({
-    color: options.color ?? 0xaaaaaa,
-    roughness: options.roughness ?? 0.7,
-    metalness: options.metalness ?? 0,
-    clearcoat: options.clearcoat ?? 0.2,
-    clearcoatRoughness: options.clearcoatRoughness ?? 0.1,
+    color: options.color ?? 0xffffff,
+    roughness: options.roughness ?? 0.5,
+    metalness: options.metalness ?? 0.1,
+    emissive: options.emissive ?? 0x000000,
+    emissiveIntensity: options.emissiveIntensity ?? 0.05,
+    clearcoat: options.clearcoat ?? 0.2
   });
 
-  const planet = new THREE.Mesh(geo, mat);
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), mat);
   planet.position.x = dist;
   pivot.userData.planet = planet;
   pivot.add(planet);
 
-  // Glow nhẹ xung quanh hành tinh
-  if (options.atmosphere) {
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: options.atmosphere,
-      transparent: true,
-      opacity: 0.15,
-      blending: THREE.AdditiveBlending,
-    });
-    const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 1.05, 64, 64),
-      glowMat
+  // Atmosphere
+  if(options.atmosphere){
+    const atmo = new THREE.Mesh(
+      new THREE.SphereGeometry(radius*1.05,64,64),
+      new THREE.MeshBasicMaterial({
+        color: options.atmosphere,
+        transparent:true,
+        opacity:0.15,
+        blending:THREE.AdditiveBlending
+      })
     );
-    planet.add(glow);
-    pivot.userData.atmo = glow;
+    planet.add(atmo);
+    pivot.userData.atmo = atmo;
+  }
+
+  // Ring
+  if(options.ring){
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(radius*1.4, radius*2.2,64),
+      new THREE.MeshBasicMaterial({
+        color:options.ring,
+        transparent:true,
+        opacity:0.5,
+        side:THREE.DoubleSide
+      })
+    );
+    ring.rotation.x = Math.PI/2;
+    planet.add(ring);
   }
 
   galaxy.add(pivot);
@@ -130,14 +124,13 @@ function createPlanetRealistic(radius, dist, speed, options = {}) {
   return pivot;
 }
 
-// 🌍 Tạo hành tinh với đặc trưng riêng
-createPlanetRealistic(1.5, 10, 0.02, { color: 0xaaaaaa, displacementScale: 0.2, noiseScale: 1.0 }); // hành tinh đá trơn
-createPlanetRealistic(2, 15, 0.018, { color: 0xffcc88, displacementScale: 0.4, noiseScale: 0.8 }); // hành tinh cát / sa mạc
-createPlanetRealistic(2.5, 20, 0.016, { color: 0x2266ff, atmosphere: 0x66ccff, displacementScale: 0.35, noiseScale: 0.7 }); // hành tinh nước + khí quyển
-createPlanetRealistic(2, 25, 0.014, { color: 0xff5533, displacementScale: 0.5, noiseScale: 0.6 }); // hành tinh núi lửa
-createPlanetRealistic(3, 30, 0.01, { color: 0xffaa55, displacementScale: 0.25, noiseScale: 1.2 }); // hành tinh đá nhẹ, nhẵn
-createPlanetRealistic(2.5, 35, 0.008, { color: 0xffe0aa, displacementScale: 0.3, noiseScale: 0.9, ring: 0xffddaa }); // hành tinh có vành
-createPlanetRealistic(2, 40, 0.006, { color: 0x88ccff, emissive: 0x2244ff, emissiveIntensity: 0.1, displacementScale: 0.45, noiseScale: 0.7 }); // hành tinh băng / băng ánh sáng
+createPlanet(1.5, 10, 0.02, {color:0xaaaaaa});
+createPlanet(2, 15, 0.018, {color:0xffcc88});
+createPlanet(2.5, 20, 0.016, {color:0x2266ff, atmosphere:0x66ccff});
+createPlanet(2, 25, 0.014, {color:0xff5533});
+createPlanet(3, 30, 0.01, {color:0xffaa55});
+createPlanet(2.5, 35, 0.008, {color:0xffe0aa, ring:0xffddaa});
+createPlanet(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
 
 // 🌟 Khởi tạo hành tinh hiện tại
 let currentPlanetIndex = 0;
