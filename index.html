@@ -211,34 +211,48 @@ hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,min
 
 let lastHandX=null,lastSwipeTime=0,currentPlanetIndex=0,targetCameraPos=new THREE.Vector3();
 
-hands.onResults(results=>{
-  ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
-  if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
-  if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){state="TREE";return;}
+hands.onResults(results => {
+  ctx2.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  if(results.image) ctx2.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
 
-  if(results.multiHandLandmarks.length===2){
-    const h1=results.multiHandLandmarks[0],h2=results.multiHandLandmarks[1];
-    const dIndex=Math.hypot(h1[8].x-h2[8].x,h1[8].y-h2[8].y);
-    const dThumb=Math.hypot(h1[4].x-h2[4].x,h1[4].y-h2[4].y);
-    if(dIndex<0.15&&dThumb<0.15){state="HEART";return;}
+  // Nếu không phát hiện tay → nắm tay = zoom ra
+  if(!results.multiHandLandmarks || results.multiHandLandmarks.length === 0){
+    state = "TREE"; // zoom ra
+    return;
   }
 
-  const lm=results.multiHandLandmarks[0],wrist=lm[0];
-  const tips=[8,12,16,20];
-  let open=0; tips.forEach(i=>open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y));
-  const avgOpen=open/tips.length;
-  const pinch=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
-  if(pinch<0.05) state="PHOTO"; else if(avgOpen<0.25) state="TREE"; else state="ROTATE";
+  // Nếu hai tay chụm hoặc tạo tim → giữ nguyên HEART (có thể bỏ hoặc dùng cho effect khác)
+  if(results.multiHandLandmarks.length === 2){
+    const h1 = results.multiHandLandmarks[0], h2 = results.multiHandLandmarks[1];
+    const dIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
+    const dThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
+    if(dIndex < 0.15 && dThumb < 0.15){ state = "HEART"; return; }
+  }
 
-  const indexTip=lm[8],now=performance.now();
-  if(lastHandX!==null){
-    const deltaX=indexTip.x-lastHandX,dt=now-lastSwipeTime;
-    if(Math.abs(deltaX)>0.15&&dt>700){
-      if(deltaX>0) moveToPlanet(currentPlanetIndex+1); else moveToPlanet(currentPlanetIndex-1);
-      lastSwipeTime=now;
+  const lm = results.multiHandLandmarks[0], wrist = lm[0];
+  const tips = [8,12,16,20];
+  let open = 0; 
+  tips.forEach(i => open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
+  const avgOpen = open / tips.length;
+  const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+
+  // ---- Chỉnh lại tư thế ----
+  if(avgOpen > 0.25) state = "ROTATE";   // bung tay → xem toàn bộ dải ngân hà
+  else if(avgOpen < 0.25) state = "TREE"; // nắm tay → zoom ra
+  else if(pinch < 0.05) state = "PHOTO";  // pinch → zoom vào hành tinh (có thể giữ hoặc bỏ)
+  // --------------------------
+  
+  // Swipe để đổi hành tinh (chỉ khi tay mở ra, tức avgOpen > 0.25)
+  const indexTip = lm[8], now = performance.now();
+  if(lastHandX !== null){
+    const deltaX = indexTip.x - lastHandX, dt = now - lastSwipeTime;
+    if(Math.abs(deltaX) > 0.15 && dt > 700 && state === "ROTATE"){ // chỉ swipe khi bung tay
+      if(deltaX > 0) moveToPlanet(currentPlanetIndex + 1);
+      else moveToPlanet(currentPlanetIndex - 1);
+      lastSwipeTime = now;
     }
   }
-  lastHandX=indexTip.x;
+  lastHandX = indexTip.x;
 });
 
 function moveToPlanet(index){
@@ -253,25 +267,33 @@ const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:vid
 cameraMP.start();
 
 // ================= ANIMATE =================
-const lookTarget=new THREE.Vector3();
+const lookTarget = new THREE.Vector3();
+
 function animate(){
   requestAnimationFrame(animate);
-  sun.rotation.y+=0.003;
+  sun.rotation.y += 0.003;
   planets.forEach(p=>{
-    p.rotation.y+=p.userData.speed;
-    const targetScale=state==="PHOTO"?3:1;
+    p.rotation.y += p.userData.speed;
+    const targetScale = state === "PHOTO" ? 3 : 1;
     p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
-  camera.position.lerp(targetCameraPos,0.05);
-  planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
-  camera.lookAt(lookTarget);
-  if(state==="ROTATE") galaxy.rotation.y+=0.003;
 
-  smoothState=state;
+  camera.position.lerp(targetCameraPos, 0.05);
+
+  // Chỉ lookAt hành tinh khi state khác ROTATE
+  if(state !== "ROTATE"){
+    planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
+    camera.lookAt(lookTarget);
+  } else {
+    camera.lookAt(0,0,0); // nhìn trung tâm dải ngân hà
+    galaxy.rotation.y += 0.003;
+  }
+
+  smoothState = state;
   if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
   else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
 
-  noteEl.textContent=stateText[smoothState]||"";
+  noteEl.textContent = stateText[smoothState] || "";
   renderer.render(scene,camera);
 }
 animate();
