@@ -130,6 +130,9 @@ createPlanet(3, 30, 0.01, {color:0xffaa55});
 createPlanet(2.5, 35, 0.008, {color:0xffe0aa, ring:0xffddaa});
 createPlanet(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
 
+// 🌟 Khởi tạo hành tinh hiện tại
+let currentPlanetIndex = 0;
+
 // ================= STAR DUST =================
 (function createStars(){
   const count = 8000;
@@ -236,6 +239,12 @@ hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,min
 let initialLoad = true;
 
 hands.onResults(results => {
+  // vẽ video lên canvas góc
+  ctx2.save();
+  ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
+  if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
+  ctx2.restore();
+
   if(!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
 
   const lm = results.multiHandLandmarks[0];
@@ -269,8 +278,12 @@ function moveToPlanet(index){
   if(index<0) index=planets.length-1;
   if(index>=planets.length) index=0;
   currentPlanetIndex=index;
-  planets[currentPlanetIndex].userData.planet.getWorldPosition(targetCameraPos);
-  targetCameraPos.add(new THREE.Vector3(0,6,14));
+
+  const planetPos = new THREE.Vector3();
+  planets[currentPlanetIndex].userData.planet.getWorldPosition(planetPos);
+
+  targetCameraPos.copy(planetPos);
+  targetCameraPos.add(new THREE.Vector3(0,6,14)); // offset camera
 }
 
 const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:videoEl});},width:640,height:480});
@@ -292,30 +305,31 @@ let targetCameraPos = initialCameraPos.clone();
 
 function animate(){
   requestAnimationFrame(animate);
+
   sun.rotation.y += 0.003;
+
   planets.forEach(p=>{
     p.rotation.y += p.userData.speed;
-    const targetScale = state === "PHOTO" ? 3 : 1;
+    const targetScale = state==="PHOTO"?3:1;
     p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
 
-  // Chỉ lookAt hành tinh khi state khác ROTATE// 
-if(state === "PHOTO"){ 
-    // zoom vào hành tinh
+  // Camera logic
+  if(state==="PHOTO"){
     planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
-    camera.position.lerp(targetCameraPos, 0.05);
-    camera.lookAt(lookTarget);
-} else { 
-    // ROTATE hoặc TREE → zoom ra toàn cảnh
-    camera.position.lerp(initialCameraPos, 0.05);
-    camera.lookAt(lookTarget);
-}
+    camera.position.lerp(targetCameraPos,0.05);
+  } else { 
+    camera.position.lerp(initialCameraPos,0.05);
+  }
+
+  camera.lookAt(lookTarget);
 
   smoothState = state;
   if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
   else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
 
   noteEl.textContent = stateText[smoothState] || "";
+
   renderer.render(scene,camera);
 }
 animate();
