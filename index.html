@@ -40,15 +40,18 @@
     border-radius: 12px;
     opacity: 0.75;
     pointer-events: none;
+    z-index: 10;
   "
 ></canvas>
 
-<div id="gestureNote">
-  ✋ Xoay tay: Xoay dải ngân hà
-</div>
-
 <script>
 // ================= THREE.JS =================
+let currentPlanetIndex = 0;
+let targetCameraPos = new THREE.Vector3();
+let isSwiping = false;
+
+let lastHandX = null;
+
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
@@ -373,7 +376,33 @@ hands.onResults(results => {
   if (pinch < 0.05) state = "PHOTO";
   else if (avgOpen < 0.25) state = "TREE";
   else state = "ROTATE";
+
+// ===== VUỐT TAY TRÁI / PHẢI =====
+const indexTip = lm[8]; // đầu ngón trỏ
+
+if (lastHandX !== null) {
+  const deltaX = indexTip.x - lastHandX;
+
+  // Vuốt phải
+  if (deltaX > 0.12 && !isSwiping) {
+    moveToPlanet(currentPlanetIndex + 1);
+    isSwiping = true;
+  }
+
+  // Vuốt trái
+  if (deltaX < -0.12 && !isSwiping) {
+    moveToPlanet(currentPlanetIndex - 1);
+    isSwiping = true;
+  }
+}
+
+lastHandX = indexTip.x;
 });
+
+// Reset sau khi tay đứng yên
+setTimeout(() => {
+  isSwiping = false;
+}, 400);
 
 // Camera
 const cam = new Camera(videoEl, {
@@ -383,6 +412,23 @@ const cam = new Camera(videoEl, {
 });
 cam.start();
 
+function moveToPlanet(index) {
+  if (index < 0) index = planets.length - 1;
+  if (index >= planets.length) index = 0;
+
+  currentPlanetIndex = index;
+
+  const planet = planets[index].userData.planet;
+  const worldPos = new THREE.Vector3();
+  planet.getWorldPosition(worldPos);
+
+  // Camera đứng lệch chút cho đẹp
+  targetCameraPos.set(
+    worldPos.x + 8,
+    worldPos.y + 4,
+    worldPos.z + 12
+  );
+}
 // ================= ANIMATE =================
 function animate() {
   requestAnimationFrame(animate);
@@ -398,6 +444,13 @@ function animate() {
     );
   });
 
+  camera.position.lerp(targetCameraPos, 0.05);
+camera.lookAt(
+  planets[currentPlanetIndex].userData.planet.getWorldPosition(
+    new THREE.Vector3()
+  )
+);
+
   if (state === "ROTATE") galaxy.rotation.y += 0.003;
   smoothState = state;
   if (smoothState === "HEART") {
@@ -405,7 +458,7 @@ function animate() {
 } else {
   galaxy.scale.lerp(new THREE.Vector3(1,1,1), 0.05);
 }
-  noteEl.textContent = stateText[smoothstate] || "";
+  noteEl.textContent = stateText[smoothState] || "";
   renderer.render(scene, camera);
 }
 animate();
