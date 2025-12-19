@@ -158,23 +158,34 @@ createPlanet(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity
 })();
 
 function createStarTexture() {
-  const size = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
+    const size = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
 
-  const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  grad.addColorStop(0,"rgba(255,255,255,1)");
-  grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
-  grad.addColorStop(1,"rgba(255,255,255,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,size,size);
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0,"rgba(255,255,255,1)");
+    grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
+    grad.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,size,size);
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter; // mịn hơn
-  texture.magFilter = THREE.LinearFilter;
-  return texture;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter; // mịn hơn
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
 }
+
+// Sau đó:
+const mat=new THREE.PointsMaterial({
+    size:1.2,
+    map: createStarTexture(),
+    transparent:true,
+    opacity:0.6,
+    blending:THREE.AdditiveBlending,
+    depthWrite:false,
+    sizeAttenuation:true
+});
 
 function createMilkyWay(){
   const starCount=30000,positions=[],colors=[];
@@ -265,13 +276,17 @@ cameraMP.start();
 // ================= ANIMATE =================
 const lookTarget = new THREE.Vector3();
 
-// ban đầu đứng xa nhìn dải ngân hà
-targetCameraPos.set(0, 50, 150);
-camera.position.copy(targetCameraPos);
+// Camera lúc load → nhìn toàn cảnh dải ngân hà
+const initialCameraPos = new THREE.Vector3(0, 50, 150);
+camera.position.copy(initialCameraPos);
 
-// lookTarget ban đầu cũng ở trung tâm dải ngân hà
-lookTarget.set(0, 0, 0);
+// LookAt trung tâm dải ngân hà
+const lookTarget = new THREE.Vector3(0,0,0);
 camera.lookAt(lookTarget);
+
+// targetCameraPos lúc load trùng với initialCameraPos
+let targetCameraPos = initialCameraPos.clone();
+
 
 function animate(){
   requestAnimationFrame(animate);
@@ -284,16 +299,18 @@ function animate(){
 
   camera.position.lerp(targetCameraPos, 0.05);
 
-  // Chỉ lookAt hành tinh khi state khác ROTATE
-  if(state !== "ROTATE"){
-  // zoom vào hành tinh
-  planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
-  camera.lookAt(lookTarget);
+  // Chỉ lookAt hành tinh khi state khác ROTATE// 
+if(state === "ROTATE"){
+    // camera giữ nguyên, nhìn trung tâm
+    camera.position.lerp(initialCameraPos, 0.05);
+    camera.lookAt(lookTarget);
 } else {
-  // luôn nhìn toàn cảnh
-  camera.lookAt(0,0,0);
-  galaxy.rotation.y += 0.003; // xoay dải ngân hà
+    // zoom vào hành tinh
+    planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
+    camera.position.lerp(targetCameraPos, 0.05);
+    camera.lookAt(lookTarget);
 }
+
 
   smoothState = state;
   if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
