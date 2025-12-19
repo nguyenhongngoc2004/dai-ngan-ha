@@ -71,52 +71,51 @@ galaxy.add(sun);
 // ================= PLANETS =================
 const planets = [];
 
-function createPlanet(radius, dist, speed, options={}){
+const textureLoader = new THREE.TextureLoader();
+
+function createPlanetRealistic(radius, dist, speed, options = {}) {
   const pivot = new THREE.Object3D();
   pivot.userData.speed = speed;
 
+  // Geometry nhiều segments + displacement theo Perlin noise
+  const geo = new THREE.SphereGeometry(radius, 128, 128);
+
+  // Nếu muốn bề mặt lồi lõm mà không cần texture, ta có thể áp dụng vertex displacement thủ công
+  for (let i = 0; i < geo.attributes.position.count; i++) {
+    const v = new THREE.Vector3().fromBufferAttribute(geo.attributes.position, i);
+    const offset = (Math.random() - 0.5) * (options.displacementScale ?? 0.3); // random lồi lõm
+    v.multiplyScalar(1 + offset);
+    geo.attributes.position.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+
   const mat = new THREE.MeshPhysicalMaterial({
-    color: options.color ?? 0xffffff,
-    roughness: options.roughness ?? 0.5,
-    metalness: options.metalness ?? 0.1,
-    emissive: options.emissive ?? 0x000000,
-    emissiveIntensity: options.emissiveIntensity ?? 0.05,
-    clearcoat: options.clearcoat ?? 0.2
+    color: options.color ?? 0xaaaaaa,
+    roughness: options.roughness ?? 0.7,
+    metalness: options.metalness ?? 0,
+    clearcoat: options.clearcoat ?? 0.2,
+    clearcoatRoughness: options.clearcoatRoughness ?? 0.1,
   });
 
-  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), mat);
+  const planet = new THREE.Mesh(geo, mat);
   planet.position.x = dist;
   pivot.userData.planet = planet;
   pivot.add(planet);
 
-  // Atmosphere
-  if(options.atmosphere){
-    const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(radius*1.05,64,64),
-      new THREE.MeshBasicMaterial({
-        color: options.atmosphere,
-        transparent:true,
-        opacity:0.15,
-        blending:THREE.AdditiveBlending
-      })
+  // Glow nhẹ xung quanh hành tinh
+  if (options.atmosphere) {
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: options.atmosphere,
+      transparent: true,
+      opacity: 0.15,
+      blending: THREE.AdditiveBlending,
+    });
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(radius * 1.05, 64, 64),
+      glowMat
     );
-    planet.add(atmo);
-    pivot.userData.atmo = atmo;
-  }
-
-  // Ring
-  if(options.ring){
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius*1.4, radius*2.2,64),
-      new THREE.MeshBasicMaterial({
-        color:options.ring,
-        transparent:true,
-        opacity:0.5,
-        side:THREE.DoubleSide
-      })
-    );
-    ring.rotation.x = Math.PI/2;
-    planet.add(ring);
+    planet.add(glow);
+    pivot.userData.atmo = glow;
   }
 
   galaxy.add(pivot);
@@ -124,13 +123,13 @@ function createPlanet(radius, dist, speed, options={}){
   return pivot;
 }
 
-createPlanet(1.5, 10, 0.02, {color:0xaaaaaa});
-createPlanet(2, 15, 0.018, {color:0xffcc88});
-createPlanet(2.5, 20, 0.016, {color:0x2266ff, atmosphere:0x66ccff});
-createPlanet(2, 25, 0.014, {color:0xff5533});
-createPlanet(3, 30, 0.01, {color:0xffaa55});
-createPlanet(2.5, 35, 0.008, {color:0xffe0aa, ring:0xffddaa});
-createPlanet(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
+createPlanetRealistic(1.5, 10, 0.02, {color:0xaaaaaa});
+createPlanetRealistic(2, 15, 0.018, {color:0xffcc88});
+createPlanetRealistic(2.5, 20, 0.016, {color:0x2266ff, atmosphere:0x66ccff});
+createPlanetRealistic(2, 25, 0.014, {color:0xff5533});
+createPlanetRealistic(3, 30, 0.01, {color:0xffaa55});
+createPlanetRealistic(2.5, 35, 0.008, {color:0xffe0aa, ring:0xffddaa});
+createPlanetRealistic(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
 
 // 🌟 Khởi tạo hành tinh hiện tại
 let currentPlanetIndex = 0;
