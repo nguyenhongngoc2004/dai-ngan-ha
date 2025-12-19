@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hyper-Real Galaxy</title>
+<title>Hyper-Real Galaxy + 7 Planets</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -19,17 +19,9 @@ body { margin:0; overflow:hidden; background:black; }
   box-shadow:0 0 12px rgba(255,255,255,0.15);
 }
 #handCanvas {
-  position:absolute;
-  bottom:20px;
-  right:20px;
-  transform: scale(0.5);
-  transform-origin: bottom right;
-  border-radius:12px;
-  opacity:0.75;
-  pointer-events:none;
-  z-index:10;
+  position:absolute; bottom:20px; right:20px;
+  border-radius:12px; opacity:0.75; pointer-events:none; z-index:10;
 }
-
 </style>
 </head>
 <body>
@@ -40,44 +32,41 @@ body { margin:0; overflow:hidden; background:black; }
 <script>
 // ================= THREE.JS =================
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0, 120, 250); 
-camera.lookAt(0, 0, 0);
-targetCameraPos.copy(camera.position);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 2000);
+camera.position.set(0, 200, 400); // từ xa nhìn galaxy
+camera.lookAt(0,0,0);
+
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-scene.add(new THREE.AmbientLight(0xffffff,0.25));
+
+scene.add(new THREE.AmbientLight(0xffffff,0.2));
 
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
-const sunLight = new THREE.PointLight(0xfff2cc,2.5,400);
+// Sun
+const sunLight = new THREE.PointLight(0xfff2cc,3,1000);
 sunLight.position.set(0,0,0);
 galaxy.add(sunLight);
 
-// Sun with glow
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(6,64,64),
   new THREE.MeshPhysicalMaterial({
-    color:0xffee88,
-    emissive:0xffcc66,
-    emissiveIntensity:1.5,
-    roughness:0.4
+    color:0xffee88, emissive:0xffcc66, emissiveIntensity:1.5, roughness:0.3
   })
 );
 galaxy.add(sun);
 
 // ================= PLANETS =================
 const planets = [];
-
 function createPlanet(radius, dist, speed, options={}){
   const pivot = new THREE.Object3D();
   pivot.userData.speed = speed;
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: options.color ?? 0xffffff,
-    roughness: options.roughness ?? 0.5,
+    roughness: options.roughness ?? 0.4,
     metalness: options.metalness ?? 0.1,
     emissive: options.emissive ?? 0x000000,
     emissiveIntensity: options.emissiveIntensity ?? 0.05,
@@ -89,20 +78,24 @@ function createPlanet(radius, dist, speed, options={}){
   pivot.userData.planet = planet;
   pivot.add(planet);
 
-  // Atmosphere
+  // Glow / atmosphere
   if(options.atmosphere){
     const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(radius*1.05,64,64),
+      new THREE.SphereGeometry(radius*1.15,64,64),
       new THREE.MeshBasicMaterial({
         color: options.atmosphere,
         transparent:true,
-        opacity:0.15,
+        opacity:0.25,
         blending:THREE.AdditiveBlending
       })
     );
     planet.add(atmo);
     pivot.userData.atmo = atmo;
   }
+
+  // Light quanh hành tinh
+  const plLight = new THREE.PointLight(0xffffff,0.2,radius*10);
+  planet.add(plLight);
 
   // Ring
   if(options.ring){
@@ -124,21 +117,21 @@ function createPlanet(radius, dist, speed, options={}){
   return pivot;
 }
 
-// Create planets
-createPlanet(1,10,0.02,{color:0xaaaaaa});
-createPlanet(1.2,14,0.018,{color:0xffcc88});
-createPlanet(1.3,18,0.016,{color:0x2266ff,atmosphere:0x66ccff});
-createPlanet(1.1,22,0.014,{color:0xff5533});
-createPlanet(2.5,30,0.01,{color:0xffaa55});
-createPlanet(2,38,0.008,{color:0xffe0aa,ring:0xffddaa});
-createPlanet(1.5,46,0.006,{color:0x88ccff,emissive:0x2244ff,emissiveIntensity:0.1});
+// 7 hành tinh với glow và màu rõ
+createPlanet(2,20,0.02,{color:0xaaaaaa});
+createPlanet(2.5,35,0.018,{color:0xffcc88});
+createPlanet(3,50,0.016,{color:0x2266ff,atmosphere:0x66ccff});
+createPlanet(2.2,65,0.014,{color:0xff5533});
+createPlanet(4,85,0.01,{color:0xffaa55});
+createPlanet(3.5,105,0.008,{color:0xffe0aa,ring:0xffddaa});
+createPlanet(3,125,0.006,{color:0x88ccff,emissive:0x2244ff,emissiveIntensity:0.15});
 
 // ================= STAR DUST =================
 (function createStars(){
-  const count = 8000;
+  const count = 20000;
   const pos = new Float32Array(count*3);
   for(let i=0;i<count;i++){
-    const r=Math.random()*120;
+    const r=Math.random()*200;
     const a=r*0.35;
     pos[i*3]=Math.cos(a)*r;
     pos[i*3+1]=(Math.random()-0.5)*20;
@@ -146,10 +139,13 @@ createPlanet(1.5,46,0.006,{color:0x88ccff,emissive:0x2244ff,emissiveIntensity:0.
   }
   const geo=new THREE.BufferGeometry();
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const mat=new THREE.PointsMaterial({size:1,color:0xffffff,opacity:0.6,transparent:true,blending:THREE.AdditiveBlending});
+  const mat=new THREE.PointsMaterial({
+    size:0.2,color:0xffffff,opacity:0.6,transparent:true,blending:THREE.AdditiveBlending
+  });
   scene.add(new THREE.Points(geo,mat));
 })();
 
+// Milky Way xoắn ốc
 function createStarTexture(){
   const size=64,canvas=document.createElement("canvas");
   canvas.width=canvas.height=size;
@@ -163,13 +159,13 @@ function createStarTexture(){
 }
 
 function createMilkyWay(){
-  const starCount=30000,positions=[],colors=[];
-  const arms=4,radius=150,thickness=0.2;
+  const starCount=40000,positions=[],colors=[];
+  const arms=4,radius=200,thickness=0.3;
   for(let i=0;i<starCount;i++){
     const r=Math.random()*radius;
     const arm=i%arms;
     const angle=r*0.07+arm*(Math.PI*2/arms);
-    const spread=1.5;
+    const spread=2;
     const x=Math.cos(angle)*r+(Math.random()-0.5)*spread;
     const z=Math.sin(angle)*r+(Math.random()-0.5)*spread;
     const y=(Math.random()-0.5)*thickness;
@@ -183,10 +179,9 @@ function createMilkyWay(){
   geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   const mat=new THREE.PointsMaterial({
-    size:0.08,map:createStarTexture(),
-    transparent:true,opacity:0.9,
-    vertexColors:true,blending:THREE.AdditiveBlending,
-    depthWrite:false
+    size:0.12,map:createStarTexture(),
+    transparent:true,opacity:0.9,vertexColors:true,
+    blending:THREE.AdditiveBlending,depthWrite:false
   });
   const milkyWay=new THREE.Points(geo,mat);
   galaxy.add(milkyWay);
@@ -199,7 +194,7 @@ const canvasEl=document.getElementById("handCanvas");
 const ctx2=canvasEl.getContext("2d");
 let state="ROTATE",smoothState="ROTATE";
 const noteEl=document.getElementById("gestureNote");
-const stateText={ROTATE:"✋ Xoay tay: Xoay dải ngân hà",PHOTO:"👌 Chụm tay: Phóng to hành tinh",HEART:"❤️ Hai tay hình tim: Kích hoạt năng lượng",TREE:"✊ Nắm tay: Thu nhỏ hệ sao"};
+const stateText={ROTATE:"✋ Xoay tay: Xoay galaxy",PHOTO:"👌 Chụm tay: Zoom hành tinh",HEART:"❤️ Hai tay hình tim",TREE:"✊ Nắm tay: Thu nhỏ"};
 
 const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
@@ -210,14 +205,12 @@ hands.onResults(results=>{
   ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
   if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
   if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){state="TREE";return;}
-
   if(results.multiHandLandmarks.length===2){
     const h1=results.multiHandLandmarks[0],h2=results.multiHandLandmarks[1];
     const dIndex=Math.hypot(h1[8].x-h2[8].x,h1[8].y-h2[8].y);
     const dThumb=Math.hypot(h1[4].x-h2[4].x,h1[4].y-h2[4].y);
     if(dIndex<0.15&&dThumb<0.15){state="HEART";return;}
   }
-
   const lm=results.multiHandLandmarks[0],wrist=lm[0];
   const tips=[8,12,16,20];
   let open=0; tips.forEach(i=>open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y));
@@ -249,61 +242,27 @@ cameraMP.start();
 
 // ================= ANIMATE =================
 const lookTarget=new THREE.Vector3();
-const lookTarget = new THREE.Vector3();
-
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
-
-  // Xoay mặt trời
-  sun.rotation.y += 0.003;
-
-  // Xoay các hành tinh
-  planets.forEach(p => {
-    p.rotation.y += p.userData.speed;
-
-    // Scale khi PHOTO
-    const targetScale = state === "PHOTO" ? 3 : 1;
-    p.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+  sun.rotation.y+=0.003;
+  planets.forEach(p=>{
+    p.rotation.y+=p.userData.speed;
+    const targetScale=state==="PHOTO"?3:1;
+    p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
-
-  // CAMERA
-  if(state === "ROTATE"){
-    // View từ xa toàn hệ
-    targetCameraPos.set(0, 120, 250);
-  } else if(state === "PHOTO" || state === "TREE" || state === "HEART") {
-    // Camera sẽ được set khi moveToPlanet được gọi
-  }
-
-  camera.position.lerp(targetCameraPos, 0.05);
-
-  // Luôn lookAt hành tinh hiện tại khi zoom
+  camera.position.lerp(targetCameraPos,0.05);
   planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
   camera.lookAt(lookTarget);
+  if(state==="ROTATE") galaxy.rotation.y+=0.003;
 
-  // Xoay toàn galaxy khi ROTATE
-  if(state === "ROTATE") galaxy.rotation.y += 0.003;
+  smoothState=state;
+  if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
+  else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
 
-  // Scale galaxy khi HEART
-  smoothState = state;
-  if(smoothState === "HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
-  else galaxy.scale.lerp(new THREE.Vector3(0.8,0.8,0.8),0.05); // scale ban đầu nhỏ hơn
-
-  noteEl.textContent = stateText[smoothState] || "";
-
-  renderer.render(scene, camera);
+  noteEl.textContent=stateText[smoothState]||"";
+  renderer.render(scene,camera);
 }
 animate();
-
-// ================= MOVE CAMERA ĐẾN HÀNH TINH =================
-function moveToPlanet(index){
-  if(index < 0) index = planets.length - 1;
-  if(index >= planets.length) index = 0;
-  currentPlanetIndex = index;
-
-  const p = planets[currentPlanetIndex].userData.planet;
-  p.getWorldPosition(targetCameraPos);
-  targetCameraPos.add(new THREE.Vector3(0, 6, 14)); // offset để thấy hành tinh rõ
-}
 
 window.addEventListener("resize",()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
