@@ -3,89 +3,58 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Galaxy + Solar System</title>
-
+<title>Hyper-Real Galaxy</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 <style>
+body { margin:0; overflow:hidden; background:black; }
 #gestureNote {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  padding: 10px 14px;
-  background: rgba(0,0,0,0.45);
-  color: #ffffff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont;
-  font-size: 14px;
-  border-radius: 12px;
-  backdrop-filter: blur(6px);
-  pointer-events: none;
-  box-shadow: 0 0 12px rgba(255,255,255,0.15);
+  position:absolute; bottom:20px; left:20px;
+  padding:10px 14px; background:rgba(0,0,0,0.45);
+  color:#fff; font-family:system-ui,-apple-system,BlinkMacSystemFont;
+  font-size:14px; border-radius:12px;
+  backdrop-filter:blur(6px); pointer-events:none;
+  box-shadow:0 0 12px rgba(255,255,255,0.15);
+}
+#handCanvas {
+  position:absolute; bottom:20px; right:20px;
+  border-radius:12px; opacity:0.75; pointer-events:none; z-index:10;
 }
 </style>
 </head>
-
-<body style="margin:0; overflow:hidden; background:black;">
+<body>
 <div id="gestureNote"></div>
 <video id="video" style="display:none;"></video>
-<canvas
-  id="handCanvas"
-  width="320"
-  height="240"
-  style="
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    border-radius: 12px;
-    opacity: 0.75;
-    pointer-events: none;
-    z-index: 10;
-  "
-></canvas>
+<canvas id="handCanvas" width="320" height="240"></canvas>
 
 <script>
 // ================= THREE.JS =================
-let currentPlanetIndex = 0;
-let targetCameraPos = new THREE.Vector3();
-let isSwiping = false;
-
-let lastHandX = null;
-let lastSwipeTime = 0;
-
 const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(
-  60, window.innerWidth / window.innerHeight, 0.1, 1000
-);
-camera.fov = 45; // nhỏ hơn → cảm giác xa hơn
-camera.updateProjectionMatrix();
-
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 75, 140);
-camera.lookAt(0, 0, 0);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.25));
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.25));
-
-// ================= GALAXY =================
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
-const sunLight = new THREE.PointLight(0xfff2cc, 2.2, 400);
-sunLight.position.set(0, 0, 0);
+const sunLight = new THREE.PointLight(0xfff2cc,2.5,400);
+sunLight.position.set(0,0,0);
 galaxy.add(sunLight);
 
-// Sun
+// Sun with glow
 const sun = new THREE.Mesh(
-  new THREE.SphereGeometry(6, 32, 32),
-  new THREE.MeshStandardMaterial({
-    color: 0xffee88,
-    emissive: 0xffcc66,
-    emissiveIntensity: 1.2
+  new THREE.SphereGeometry(6,64,64),
+  new THREE.MeshPhysicalMaterial({
+    color:0xffee88,
+    emissive:0xffcc66,
+    emissiveIntensity:1.5,
+    roughness:0.4
   })
 );
 galaxy.add(sun);
@@ -93,385 +62,211 @@ galaxy.add(sun);
 // ================= PLANETS =================
 const planets = [];
 
-function createPlanet(radius, dist, speed, options = {}) {
+function createPlanet(radius, dist, speed, options={}){
   const pivot = new THREE.Object3D();
+  pivot.userData.speed = speed;
 
-  const material = new THREE.MeshPhysicalMaterial({
-    color: options.color,
-    roughness: options.roughness ?? 0.6,
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: options.color ?? 0xffffff,
+    roughness: options.roughness ?? 0.5,
     metalness: options.metalness ?? 0.1,
-    clearcoat: options.clearcoat ?? 0,
     emissive: options.emissive ?? 0x000000,
-    emissiveIntensity: options.emissiveIntensity ?? 0.05
+    emissiveIntensity: options.emissiveIntensity ?? 0.05,
+    clearcoat: options.clearcoat ?? 0.2
   });
 
-  const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 48, 48),
-    material
-  );
-
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), mat);
   planet.position.x = dist;
-  pivot.userData.speed = speed;
   pivot.userData.planet = planet;
-
   pivot.add(planet);
-  galaxy.add(pivot);
-  planets.push(pivot);
 
-  // 🌫 Atmosphere
-  if (options.atmosphere) {
+  // Atmosphere
+  if(options.atmosphere){
     const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 1.05, 48, 48),
+      new THREE.SphereGeometry(radius*1.05,64,64),
       new THREE.MeshBasicMaterial({
         color: options.atmosphere,
-        transparent: true,
-        opacity: 0.12,
-        blending: THREE.AdditiveBlending
+        transparent:true,
+        opacity:0.15,
+        blending:THREE.AdditiveBlending
       })
     );
     planet.add(atmo);
     pivot.userData.atmo = atmo;
   }
 
-  // 🪐 Ring
-  if (options.ring) {
+  // Ring
+  if(options.ring){
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius * 1.4, radius * 2.2, 64),
+      new THREE.RingGeometry(radius*1.4, radius*2.2,64),
       new THREE.MeshBasicMaterial({
-        color: options.ring,
-        transparent: true,
-        opacity: 0.5,
-        side: THREE.DoubleSide
+        color:options.ring,
+        transparent:true,
+        opacity:0.5,
+        side:THREE.DoubleSide
       })
     );
-    ring.rotation.x = Math.PI / 2;
+    ring.rotation.x = Math.PI/2;
     planet.add(ring);
   }
 
+  galaxy.add(pivot);
+  planets.push(pivot);
   return pivot;
 }
 
-createPlanet(1, 10, 0.02, {
-  color: 0xaaaaaa,
-  roughness: 0.9
-});
-
-createPlanet(1.2, 14, 0.018, {
-  color: 0xffcc88,
-  emissive: 0xffaa44,
-  emissiveIntensity: 0.12
-});
-
-createPlanet(1.3, 18, 0.016, {
-  color: 0x2266ff,
-  roughness: 0.45,
-  clearcoat: 0.4,
-  atmosphere: 0x66ccff
-});
-
-createPlanet(1.1, 22, 0.014, {
-  color: 0xff5533,
-  roughness: 0.95
-});
-
-createPlanet(2.5, 30, 0.01, {
-  color: 0xffaa55,
-  roughness: 0.6
-});
-
-createPlanet(2, 38, 0.008, {
-  color: 0xffe0aa,
-  roughness: 0.7,
-  ring: 0xffddaa
-});
-
-createPlanet(1.5, 46, 0.006, {
-  color: 0x88ccff,
-  emissive: 0x2244ff,
-  emissiveIntensity: 0.1
-});
-
-function addJupiterBands(planet) {
-  const geo = new THREE.SphereGeometry(
-    planet.geometry.parameters.radius * 1.001,
-    64, 64
-  );
-
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xffbb88,
-    transparent: true,
-    opacity: 0.15
-  });
-
-  const bands = new THREE.Mesh(geo, mat);
-  planet.add(bands);
-}
-if (planets[4]) {
-  addJupiterBands(planets[4].userData.planet);
-}
+// Create planets
+createPlanet(1,10,0.02,{color:0xaaaaaa});
+createPlanet(1.2,14,0.018,{color:0xffcc88});
+createPlanet(1.3,18,0.016,{color:0x2266ff,atmosphere:0x66ccff});
+createPlanet(1.1,22,0.014,{color:0xff5533});
+createPlanet(2.5,30,0.01,{color:0xffaa55});
+createPlanet(2,38,0.008,{color:0xffe0aa,ring:0xffddaa});
+createPlanet(1.5,46,0.006,{color:0x88ccff,emissive:0x2244ff,emissiveIntensity:0.1});
 
 // ================= STAR DUST =================
 (function createStars(){
-  const count = 6000;
-  const pos = new Float32Array(count * 3);
-
-  for (let i = 0; i < count; i++) {
-    const r = Math.random() * 80;
-    const a = r * 0.35;
-    pos[i*3]   = Math.cos(a) * r;
-    pos[i*3+1] = (Math.random() - 0.5) * 15;
-    pos[i*3+2] = Math.sin(a) * r;
+  const count = 8000;
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const r=Math.random()*120;
+    const a=r*0.35;
+    pos[i*3]=Math.cos(a)*r;
+    pos[i*3+1]=(Math.random()-0.5)*20;
+    pos[i*3+2]=Math.sin(a)*r;
   }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-
-  const mat = new THREE.PointsMaterial({
-    size: 1,
-    color: 0xffffff,
-    opacity: 0.6,
-    transparent: true,
-    blending: THREE.AdditiveBlending
-  });
-
-  scene.add(new THREE.Points(geo, mat));
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({size:1,color:0xffffff,opacity:0.6,transparent:true,blending:THREE.AdditiveBlending});
+  scene.add(new THREE.Points(geo,mat));
 })();
 
-function createStarTexture() {
-  const size = 64;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  const gradient = ctx.createRadialGradient(
-    size/2, size/2, 0,
-    size/2, size/2, size/2
-  );
-
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.4, "rgba(255,255,255,0.6)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-
+function createStarTexture(){
+  const size=64,canvas=document.createElement("canvas");
+  canvas.width=canvas.height=size;
+  const ctx=canvas.getContext("2d");
+  const grad=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  grad.addColorStop(0,"rgba(255,255,255,1)");
+  grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
+  grad.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
   return new THREE.CanvasTexture(canvas);
 }
 
-function createMilkyWay() {
-  const starCount = 12000;
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
-  const colors = [];
-
-  const arms = 4;            // số nhánh xoắn
-  const radius = 120;
-  const thickness = 0.08;
-
-  for (let i = 0; i < starCount; i++) {
-    const r = Math.random() * radius;
-    const arm = i % arms;
-    const angle = r * 0.08 + arm * (Math.PI * 2 / arms);
-
-    const spread = 0.9;
-    const x = Math.cos(angle) * r + (Math.random() - 0.5) * spread;
-    const z = Math.sin(angle) * r + (Math.random() - 0.5) * spread;
-    const y = (Math.random() - 0.5) * thickness;
-
-    positions.push(x, y, z);
-
-    const c = new THREE.Color();
-    c.setHSL(0.15 + Math.random() * 0.15, 0.7, 0.6);
-    colors.push(c.r, c.g, c.b);
+function createMilkyWay(){
+  const starCount=30000,positions=[],colors=[];
+  const arms=4,radius=150,thickness=0.2;
+  for(let i=0;i<starCount;i++){
+    const r=Math.random()*radius;
+    const arm=i%arms;
+    const angle=r*0.07+arm*(Math.PI*2/arms);
+    const spread=1.5;
+    const x=Math.cos(angle)*r+(Math.random()-0.5)*spread;
+    const z=Math.sin(angle)*r+(Math.random()-0.5)*spread;
+    const y=(Math.random()-0.5)*thickness;
+    positions.push(x,y,z);
+    const t=r/radius;
+    const c=new THREE.Color();
+    c.r=1*(1-t)+0.5*t; c.g=0.85*(1-t)+0.8*t; c.b=0.5*(1-t)+1*t;
+    colors.push(c.r,c.g,c.b);
   }
-
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
-  geometry.setAttribute(
-    'color',
-    new THREE.Float32BufferAttribute(colors, 3)
-  );
-
-  const material = new THREE.PointsMaterial({
-  size: 0.07,
-  map: createStarTexture(),
-  transparent: true,
-  opacity: 0.75,
-  vertexColors: true,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  const mat=new THREE.PointsMaterial({
+    size:0.08,map:createStarTexture(),
+    transparent:true,opacity:0.9,
+    vertexColors:true,blending:THREE.AdditiveBlending,
+    depthWrite:false
   });
-
-  const milkyWay = new THREE.Points(geometry, material);
+  const milkyWay=new THREE.Points(geo,mat);
   galaxy.add(milkyWay);
 }
 createMilkyWay();
 
 // ================= HAND TRACKING =================
-const videoEl = document.getElementById("video");
-const canvasEl = document.getElementById("handCanvas");
-const ctx = canvasEl.getContext("2d");
+const videoEl=document.getElementById("video");
+const canvasEl=document.getElementById("handCanvas");
+const ctx2=canvasEl.getContext("2d");
+let state="ROTATE",smoothState="ROTATE";
+const noteEl=document.getElementById("gestureNote");
+const stateText={ROTATE:"✋ Xoay tay: Xoay dải ngân hà",PHOTO:"👌 Chụm tay: Phóng to hành tinh",HEART:"❤️ Hai tay hình tim: Kích hoạt năng lượng",TREE:"✊ Nắm tay: Thu nhỏ hệ sao"};
 
-let state = "ROTATE"; // ROTATE | PHOTO | HEART | TREE
-let smoothState = "ROTATE";
+const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
 
-const noteEl = document.getElementById("gestureNote");
+let lastHandX=null,lastSwipeTime=0,currentPlanetIndex=0,targetCameraPos=new THREE.Vector3();
 
-const stateText = {
-  ROTATE: "✋ Xoay tay: Xoay dải ngân hà",
-  PHOTO: "👌 Chụm tay: Phóng to hành tinh",
-  HEART: "❤️ Hai tay hình tim: Kích hoạt năng lượng",
-  TREE: "✊ Nắm tay: Thu nhỏ hệ sao"
-};
+hands.onResults(results=>{
+  ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
+  if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
+  if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){state="TREE";return;}
 
-const hands = new Hands({
-  locateFile: file =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
-
-hands.setOptions({
-  maxNumHands: 2,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
-});
-
-hands.onResults(results => {
-  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-
-  if (results.image) {
-    ctx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height);
+  if(results.multiHandLandmarks.length===2){
+    const h1=results.multiHandLandmarks[0],h2=results.multiHandLandmarks[1];
+    const dIndex=Math.hypot(h1[8].x-h2[8].x,h1[8].y-h2[8].y);
+    const dThumb=Math.hypot(h1[4].x-h2[4].x,h1[4].y-h2[4].y);
+    if(dIndex<0.15&&dThumb<0.15){state="HEART";return;}
   }
 
-  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    state = "TREE";
-    return;
-  }
+  const lm=results.multiHandLandmarks[0],wrist=lm[0];
+  const tips=[8,12,16,20];
+  let open=0; tips.forEach(i=>open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y));
+  const avgOpen=open/tips.length;
+  const pinch=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
+  if(pinch<0.05) state="PHOTO"; else if(avgOpen<0.25) state="TREE"; else state="ROTATE";
 
-  // ❤️ Two-hand heart
-  if (results.multiHandLandmarks.length === 2) {
-    const h1 = results.multiHandLandmarks[0];
-    const h2 = results.multiHandLandmarks[1];
-
-    const dIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
-    const dThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
-
-    if (dIndex < 0.15 && dThumb < 0.15) {
-      state = "HEART";
-      return;
+  const indexTip=lm[8],now=performance.now();
+  if(lastHandX!==null){
+    const deltaX=indexTip.x-lastHandX,dt=now-lastSwipeTime;
+    if(Math.abs(deltaX)>0.15&&dt>700){
+      if(deltaX>0) moveToPlanet(currentPlanetIndex+1); else moveToPlanet(currentPlanetIndex-1);
+      lastSwipeTime=now;
     }
   }
+  lastHandX=indexTip.x;
+});
 
-  // ✋ One-hand gestures
-  const lm = results.multiHandLandmarks[0];
-  const wrist = lm[0];
-  const tips = [8,12,16,20];
-
-  let open = 0;
-  tips.forEach(i => {
-    open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y);
-  });
-
-  const avgOpen = open / tips.length;
-  const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-
-  if (pinch < 0.05) state = "PHOTO";
-  else if (avgOpen < 0.25) state = "TREE";
-  else state = "ROTATE";
-
-// ===== VUỐT TAY TRÁI / PHẢI =====
-const indexTip = lm[8];
-const now = performance.now();
-
-if (lastHandX !== null) {
-  const deltaX = indexTip.x - lastHandX;
-  const dt = now - lastSwipeTime;
-
-  const SWIPE_THRESHOLD = 0.15;
-  const SWIPE_COOLDOWN = 700;
-
-  if (Math.abs(deltaX) > SWIPE_THRESHOLD && dt > SWIPE_COOLDOWN) {
-    if (deltaX > 0) {
-      moveToPlanet(currentPlanetIndex + 1);
-    } else {
-      moveToPlanet(currentPlanetIndex - 1);
-    }
-    lastSwipeTime = now;
-  }
+function moveToPlanet(index){
+  if(index<0) index=planets.length-1;
+  if(index>=planets.length) index=0;
+  currentPlanetIndex=index;
+  planets[currentPlanetIndex].userData.planet.getWorldPosition(targetCameraPos);
+  targetCameraPos.add(new THREE.Vector3(0,6,14));
 }
 
-lastHandX = indexTip.x
-});
-
-// ================= START CAMERA (CHỈ 1 LẦN) =================
-const cameraMP = new Camera(videoEl, {
-  onFrame: async () => {
-    await hands.send({ image: videoEl });
-  },
-  width: 640,
-  height: 480
-});
+const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:videoEl});},width:640,height:480});
 cameraMP.start();
 
-function moveToPlanet(index) {
-  if (index < 0) index = planets.length - 1;
-  if (index >= planets.length) index = 0;
-
-  currentPlanetIndex = index;
-
-  const p = planets[currentPlanetIndex].userData.planet;
-  p.getWorldPosition(targetCameraPos);
-
-  targetCameraPos.add(new THREE.Vector3(0, 6, 14));
-}
-
 // ================= ANIMATE =================
-const lookTarget = new THREE.Vector3();
-
-function animate() {
+const lookTarget=new THREE.Vector3();
+function animate(){
   requestAnimationFrame(animate);
-
-  sun.rotation.y += 0.003;
-
-  planets.forEach(p => {
-    p.rotation.y += p.userData.speed;
-
-    const targetScale = state === "PHOTO" ? 3 : 1;
-    p.scale.lerp(
-      new THREE.Vector3(targetScale, targetScale, targetScale),
-      0.1
-    );
+  sun.rotation.y+=0.003;
+  planets.forEach(p=>{
+    p.rotation.y+=p.userData.speed;
+    const targetScale=state==="PHOTO"?3:1;
+    p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
-
-  camera.position.lerp(targetCameraPos, 0.05);
-
+  camera.position.lerp(targetCameraPos,0.05);
   planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
   camera.lookAt(lookTarget);
+  if(state==="ROTATE") galaxy.rotation.y+=0.003;
 
-  if (state === "ROTATE") galaxy.rotation.y += 0.003;
+  smoothState=state;
+  if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
+  else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
 
-  smoothState = state;
-  if (smoothState === "HEART") {
-    galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4), 0.05);
-  } else {
-    galaxy.scale.lerp(new THREE.Vector3(1,1,1), 0.05);
-  }
-
-  noteEl.textContent = stateText[smoothState] || "";
-  renderer.render(scene, camera);
+  noteEl.textContent=stateText[smoothState]||"";
+  renderer.render(scene,camera);
 }
 animate();
 
-// ================= RESIZE =================
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+window.addEventListener("resize",()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth,window.innerHeight);
 });
 </script>
 </body>
 </html>
-
