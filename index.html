@@ -274,7 +274,6 @@ const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:vid
 cameraMP.start();
 
 // ================= ANIMATE =================
-const lookTarget = new THREE.Vector3();
 
 // Camera lúc load → nhìn toàn cảnh dải ngân hà
 const initialCameraPos = new THREE.Vector3(0, 50, 150);
@@ -296,8 +295,6 @@ function animate(){
     const targetScale = state === "PHOTO" ? 3 : 1;
     p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
-
-  camera.position.lerp(targetCameraPos, 0.05);
 
   // Chỉ lookAt hành tinh khi state khác ROTATE// 
 if(state === "ROTATE"){
