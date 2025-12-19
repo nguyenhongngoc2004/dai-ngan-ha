@@ -68,22 +68,26 @@ const sun = new THREE.Mesh(
 );
 galaxy.add(sun);
 
-// ================= PLANETS =================
+// ================= Planets Realistic với đặc trưng =================
 const planets = [];
-
-const textureLoader = new THREE.TextureLoader();
+const noise = new SimplexNoise(); // SimplexNoise cho bề mặt lồi lõm
 
 function createPlanetRealistic(radius, dist, speed, options = {}) {
   const pivot = new THREE.Object3D();
   pivot.userData.speed = speed;
 
-  // Geometry nhiều segments + displacement theo Perlin noise
+  // Geometry nhiều segments để displacement mượt
   const geo = new THREE.SphereGeometry(radius, 128, 128);
 
-  // Nếu muốn bề mặt lồi lõm mà không cần texture, ta có thể áp dụng vertex displacement thủ công
+  // Vertex displacement theo Simplex noise
   for (let i = 0; i < geo.attributes.position.count; i++) {
     const v = new THREE.Vector3().fromBufferAttribute(geo.attributes.position, i);
-    const offset = (Math.random() - 0.5) * (options.displacementScale ?? 0.3); // random lồi lõm
+    const n = noise.noise3D(
+      v.x * (options.noiseScale ?? 0.5),
+      v.y * (options.noiseScale ?? 0.5),
+      v.z * (options.noiseScale ?? 0.5)
+    );
+    const offset = n * (options.displacementScale ?? 0.5);
     v.multiplyScalar(1 + offset);
     geo.attributes.position.setXYZ(i, v.x, v.y, v.z);
   }
@@ -123,13 +127,14 @@ function createPlanetRealistic(radius, dist, speed, options = {}) {
   return pivot;
 }
 
-createPlanetRealistic(1.5, 10, 0.02, {color:0xaaaaaa});
-createPlanetRealistic(2, 15, 0.018, {color:0xffcc88});
-createPlanetRealistic(2.5, 20, 0.016, {color:0x2266ff, atmosphere:0x66ccff});
-createPlanetRealistic(2, 25, 0.014, {color:0xff5533});
-createPlanetRealistic(3, 30, 0.01, {color:0xffaa55});
-createPlanetRealistic(2.5, 35, 0.008, {color:0xffe0aa, ring:0xffddaa});
-createPlanetRealistic(2, 40, 0.006, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
+// 🌍 Tạo hành tinh với đặc trưng riêng
+createPlanetRealistic(1.5, 10, 0.02, { color: 0xaaaaaa, displacementScale: 0.2, noiseScale: 1.0 }); // hành tinh đá trơn
+createPlanetRealistic(2, 15, 0.018, { color: 0xffcc88, displacementScale: 0.4, noiseScale: 0.8 }); // hành tinh cát / sa mạc
+createPlanetRealistic(2.5, 20, 0.016, { color: 0x2266ff, atmosphere: 0x66ccff, displacementScale: 0.35, noiseScale: 0.7 }); // hành tinh nước + khí quyển
+createPlanetRealistic(2, 25, 0.014, { color: 0xff5533, displacementScale: 0.5, noiseScale: 0.6 }); // hành tinh núi lửa
+createPlanetRealistic(3, 30, 0.01, { color: 0xffaa55, displacementScale: 0.25, noiseScale: 1.2 }); // hành tinh đá nhẹ, nhẵn
+createPlanetRealistic(2.5, 35, 0.008, { color: 0xffe0aa, displacementScale: 0.3, noiseScale: 0.9, ring: 0xffddaa }); // hành tinh có vành
+createPlanetRealistic(2, 40, 0.006, { color: 0x88ccff, emissive: 0x2244ff, emissiveIntensity: 0.1, displacementScale: 0.45, noiseScale: 0.7 }); // hành tinh băng / băng ánh sáng
 
 // 🌟 Khởi tạo hành tinh hiện tại
 let currentPlanetIndex = 0;
