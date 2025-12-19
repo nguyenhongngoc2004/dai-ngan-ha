@@ -31,14 +31,21 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
   60, window.innerWidth / window.innerHeight, 0.1, 1000
 );
-camera.position.set(0, 15, 90);
+camera.fov = 45; // nhỏ hơn → cảm giác xa hơn
+camera.updateProjectionMatrix();
+
+camera.position.set(0, 75, 140);
 camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+const sunLight = new THREE.PointLight(0xfff2cc, 2.2, 400);
+sunLight.position.set(0, 0, 0);
+galaxy.add(sunLight);
 
 // ================= GALAXY =================
 const galaxy = new THREE.Group();
@@ -58,34 +65,120 @@ galaxy.add(sun);
 // ================= PLANETS =================
 const planets = [];
 
-function createPlanet(radius, dist, speed, color) {
+ffunction createPlanet(radius, dist, speed, options = {}) {
   const pivot = new THREE.Object3D();
 
+  const material = new THREE.MeshPhysicalMaterial({
+    color: options.color,
+    roughness: options.roughness ?? 0.6,
+    metalness: options.metalness ?? 0.1,
+    clearcoat: options.clearcoat ?? 0,
+    emissive: options.emissive ?? 0x000000,
+    emissiveIntensity: options.emissiveIntensity ?? 0.05
+  });
+
   const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 24, 24),
-    new THREE.MeshStandardMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.25
-    })
+    new THREE.SphereGeometry(radius, 48, 48),
+    material
   );
 
   planet.position.x = dist;
   pivot.userData.speed = speed;
+  pivot.userData.planet = planet;
 
   pivot.add(planet);
   galaxy.add(pivot);
   planets.push(pivot);
+
+  // 🌫 Atmosphere
+  if (options.atmosphere) {
+    const atmo = new THREE.Mesh(
+      new THREE.SphereGeometry(radius * 1.05, 48, 48),
+      new THREE.MeshBasicMaterial({
+        color: options.atmosphere,
+        transparent: true,
+        opacity: 0.12,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    planet.add(atmo);
+    pivot.userData.atmo = atmo;
+  }
+
+  // 🪐 Ring
+  if (options.ring) {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(radius * 1.4, radius * 2.2, 64),
+      new THREE.MeshBasicMaterial({
+        color: options.ring,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide
+      })
+    );
+    ring.rotation.x = Math.PI / 2;
+    planet.add(ring);
+  }
+
+  return pivot;
 }
 
-createPlanet(1,   10, 0.02, 0xaaaaaa);
-createPlanet(1.2, 14, 0.018, 0xffaa00);
-createPlanet(1.3, 18, 0.016, 0x2266ff);
-createPlanet(1.1, 22, 0.014, 0xff0000);
-createPlanet(2.5, 30, 0.01,  0xff8800);
-createPlanet(2,   38, 0.008, 0xffddaa);
-createPlanet(1.5, 46, 0.006, 0x00ffff);
-createPlanet(1.4, 52, 0.004, 0x000088);
+createPlanet(1, 10, 0.02, {
+  color: 0xaaaaaa,
+  roughness: 0.9
+});
+
+createPlanet(1.2, 14, 0.018, {
+  color: 0xffcc88,
+  emissive: 0xffaa44,
+  emissiveIntensity: 0.12
+});
+
+createPlanet(1.3, 18, 0.016, {
+  color: 0x2266ff,
+  roughness: 0.45,
+  clearcoat: 0.4,
+  atmosphere: 0x66ccff
+});
+
+createPlanet(1.1, 22, 0.014, {
+  color: 0xff5533,
+  roughness: 0.95
+});
+
+createPlanet(2.5, 30, 0.01, {
+  color: 0xffaa55,
+  roughness: 0.6
+});
+
+createPlanet(2, 38, 0.008, {
+  color: 0xffe0aa,
+  roughness: 0.7,
+  ring: 0xffddaa
+});
+
+createPlanet(1.5, 46, 0.006, {
+  color: 0x88ccff,
+  emissive: 0x2244ff,
+  emissiveIntensity: 0.1
+});
+
+function addJupiterBands(planet) {
+  const geo = new THREE.SphereGeometry(
+    planet.geometry.parameters.radius * 1.001,
+    64, 64
+  );
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffbb88,
+    transparent: true,
+    opacity: 0.15
+  });
+
+  const bands = new THREE.Mesh(geo, mat);
+  planet.add(bands);
+}
+addJupiterBands(planets[4].userData.planet);
 
 // ================= STAR DUST =================
 (function createStars(){
@@ -114,6 +207,28 @@ createPlanet(1.4, 52, 0.004, 0x000088);
   scene.add(new THREE.Points(geo, mat));
 })();
 
+function createStarTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const gradient = ctx.createRadialGradient(
+    size/2, size/2, 0,
+    size/2, size/2, size/2
+  );
+
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.6)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
 function createMilkyWay() {
   const starCount = 12000;
   const geometry = new THREE.BufferGeometry();
@@ -122,7 +237,7 @@ function createMilkyWay() {
 
   const arms = 4;            // số nhánh xoắn
   const radius = 120;
-  const thickness = 6;
+  const thickness = 0.6;
 
   for (let i = 0; i < starCount; i++) {
     const r = Math.random() * radius;
@@ -150,11 +265,13 @@ function createMilkyWay() {
   );
 
   const material = new THREE.PointsMaterial({
-    size: 0.6,
-    vertexColors: true,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
+  size: 0.25,
+  map: createStarTexture(),
+  transparent: true,
+  opacity: 0.85,
+  vertexColors: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
   });
 
   const milkyWay = new THREE.Points(geometry, material);
