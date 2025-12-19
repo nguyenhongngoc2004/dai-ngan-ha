@@ -236,38 +236,33 @@ hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,min
 let initialLoad = true;
 
 hands.onResults(results => {
-  if(initialLoad){
-    state = "ROTATE"; // giữ nhìn toàn cảnh ban đầu
-    initialLoad = false;
-    return;
-  }
+  if(!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
 
-  if(!results.multiHandLandmarks || results.multiHandLandmarks.length === 0){
-    // không detect tay → giữ state hiện tại
-    return;
-  }
-
-  // logic xác định tư thế tay
   const lm = results.multiHandLandmarks[0];
   const wrist = lm[0];
   const tips = [8,12,16,20];
+
+  // tính độ mở tay
   let open = 0;
   tips.forEach(i => open += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
   const avgOpen = open / tips.length;
+
+  // tính khoảng cách ngón cái-chỉ
   const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-  
-if(avgOpen > 0.25) {
-    state = "ROTATE";   
-    targetCameraPos.copy(initialCameraPos); // luôn giữ toàn cảnh
-} 
-else if(avgOpen < 0.25) {
-    state = "TREE";     
-    targetCameraPos.copy(initialCameraPos); // zoom ra toàn cảnh
-} 
-else if(pinch < 0.05) {
-    state = "PHOTO";    
-    moveToPlanet(currentPlanetIndex);       // zoom vào hành tinh
-}
+
+  // ① ưu tiên pinch → zoom vào hành tinh
+  if(pinch < 0.06){
+    state = "PHOTO";
+    moveToPlanet(currentPlanetIndex);
+  } 
+  // ② bung tay → xoay toàn cảnh
+  else if(avgOpen > 0.25){
+    state = "ROTATE";
+  } 
+  // ③ nắm tay → zoom ra toàn cảnh
+  else{
+    state = "TREE";
+  }
 });
 
 function moveToPlanet(index){
@@ -305,17 +300,16 @@ function animate(){
   });
 
   // Chỉ lookAt hành tinh khi state khác ROTATE// 
-if(state === "ROTATE"){
-    // camera giữ nguyên, nhìn trung tâm
-    camera.position.lerp(initialCameraPos, 0.05);
-    camera.lookAt(lookTarget);
-} else {
+if(state === "PHOTO"){ 
     // zoom vào hành tinh
     planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
     camera.position.lerp(targetCameraPos, 0.05);
     camera.lookAt(lookTarget);
+} else { 
+    // ROTATE hoặc TREE → zoom ra toàn cảnh
+    camera.position.lerp(initialCameraPos, 0.05);
+    camera.lookAt(lookTarget);
 }
-
 
   smoothState = state;
   if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
