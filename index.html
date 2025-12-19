@@ -19,9 +19,17 @@ body { margin:0; overflow:hidden; background:black; }
   box-shadow:0 0 12px rgba(255,255,255,0.15);
 }
 #handCanvas {
-  position:absolute; bottom:20px; right:20px;
-  border-radius:12px; opacity:0.75; pointer-events:none; z-index:10;
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  transform: scale(0.5);
+  transform-origin: bottom right;
+  border-radius:12px;
+  opacity:0.75;
+  pointer-events:none;
+  z-index:10;
 }
+
 </style>
 </head>
 <body>
@@ -33,8 +41,9 @@ body { margin:0; overflow:hidden; background:black; }
 // ================= THREE.JS =================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0, 75, 140);
-camera.lookAt(0,0,0);
+camera.position.set(0, 120, 250); 
+camera.lookAt(0, 0, 0);
+targetCameraPos.copy(camera.position);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -240,27 +249,61 @@ cameraMP.start();
 
 // ================= ANIMATE =================
 const lookTarget=new THREE.Vector3();
-function animate(){
+const lookTarget = new THREE.Vector3();
+
+function animate() {
   requestAnimationFrame(animate);
-  sun.rotation.y+=0.003;
-  planets.forEach(p=>{
-    p.rotation.y+=p.userData.speed;
-    const targetScale=state==="PHOTO"?3:1;
-    p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
+
+  // Xoay mặt trời
+  sun.rotation.y += 0.003;
+
+  // Xoay các hành tinh
+  planets.forEach(p => {
+    p.rotation.y += p.userData.speed;
+
+    // Scale khi PHOTO
+    const targetScale = state === "PHOTO" ? 3 : 1;
+    p.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
   });
-  camera.position.lerp(targetCameraPos,0.05);
+
+  // CAMERA
+  if(state === "ROTATE"){
+    // View từ xa toàn hệ
+    targetCameraPos.set(0, 120, 250);
+  } else if(state === "PHOTO" || state === "TREE" || state === "HEART") {
+    // Camera sẽ được set khi moveToPlanet được gọi
+  }
+
+  camera.position.lerp(targetCameraPos, 0.05);
+
+  // Luôn lookAt hành tinh hiện tại khi zoom
   planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
   camera.lookAt(lookTarget);
-  if(state==="ROTATE") galaxy.rotation.y+=0.003;
 
-  smoothState=state;
-  if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
-  else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
+  // Xoay toàn galaxy khi ROTATE
+  if(state === "ROTATE") galaxy.rotation.y += 0.003;
 
-  noteEl.textContent=stateText[smoothState]||"";
-  renderer.render(scene,camera);
+  // Scale galaxy khi HEART
+  smoothState = state;
+  if(smoothState === "HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
+  else galaxy.scale.lerp(new THREE.Vector3(0.8,0.8,0.8),0.05); // scale ban đầu nhỏ hơn
+
+  noteEl.textContent = stateText[smoothState] || "";
+
+  renderer.render(scene, camera);
 }
 animate();
+
+// ================= MOVE CAMERA ĐẾN HÀNH TINH =================
+function moveToPlanet(index){
+  if(index < 0) index = planets.length - 1;
+  if(index >= planets.length) index = 0;
+  currentPlanetIndex = index;
+
+  const p = planets[currentPlanetIndex].userData.planet;
+  p.getWorldPosition(targetCameraPos);
+  targetCameraPos.add(new THREE.Vector3(0, 6, 14)); // offset để thấy hành tinh rõ
+}
 
 window.addEventListener("resize",()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
