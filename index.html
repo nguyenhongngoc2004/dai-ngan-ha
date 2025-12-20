@@ -14,6 +14,8 @@ body { margin:0; overflow:hidden; background:black; }
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js";
 
+console.log("THREE OK", THREE.REVISION);
+
 /// ================= SCENE =================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#160016');
@@ -36,6 +38,8 @@ window.addEventListener("resize", ()=>{
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
+
+scene.add(new THREE.AxesHelper(10));
 
 /// ================= GALAXY (GIỮ NGUYÊN) =================
 let gu = { time:{ value:0 } };
@@ -140,20 +144,6 @@ solar.add(sun);
 scene.add(new THREE.AmbientLight(0x222222));
 
 const planets = [];
-
-function orbitRing(radius){
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(radius-0.03, radius+0.03, 128),
-    new THREE.MeshBasicMaterial({
-      color:0xffffff,
-      transparent:true,
-      opacity:0.25,
-      side:THREE.DoubleSide
-    })
-  );
-  ring.rotation.x = Math.PI/2;
-  solar.add(ring);
-}
 
 function createStarRing(radius, count = 1600){
   const pos = [];
