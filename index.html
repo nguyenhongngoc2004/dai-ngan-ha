@@ -11,10 +11,8 @@ body { margin:0; overflow:hidden; background:black; }
 
 <body>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js";
-
-console.log("THREE OK", THREE.REVISION);
+import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
+import { OrbitControls } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls";
 
 /// ================= SCENE =================
 const scene = new THREE.Scene();
@@ -39,91 +37,6 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
 
-scene.add(new THREE.AxesHelper(10));
-
-/// ================= GALAXY (GIỮ NGUYÊN) =================
-let gu = { time:{ value:0 } };
-
-let sizes = [], shift = [];
-const pushShift = ()=>{
-  shift.push(
-    Math.random()*Math.PI,
-    Math.random()*Math.PI*2,
-    (Math.random()*0.9+0.1)*Math.PI*0.1,
-    Math.random()*0.9+0.1
-  );
-};
-
-let pts = [];
-
-for(let i=0;i<18000;i++){
-  let r=28, R=55;               // đẩy galaxy ra xa
-  let rand=Math.pow(Math.random(),1.6);
-  let radius=Math.sqrt(R*R*rand+(1-rand)*r*r);
-
-  pts.push(
-    new THREE.Vector3().setFromCylindricalCoords(
-      radius,
-      Math.random()*Math.PI*2,
-      (Math.random()-0.5)*3
-    )
-  );
-
-  sizes.push(Math.random()*0.8+0.3); // sao nhỏ hơn
-  pushShift();
-}
-
-const g = new THREE.BufferGeometry().setFromPoints(pts);
-g.setAttribute("sizes", new THREE.Float32BufferAttribute(sizes,1));
-g.setAttribute("shift", new THREE.Float32BufferAttribute(shift,4));
-
-const m = new THREE.PointsMaterial({
-  size:0.12,
-  transparent:true,
-  depthTest:false,
-  blending:THREE.AdditiveBlending,
-  onBeforeCompile: shader=>{
-    shader.uniforms.time = gu.time;
-    shader.vertexShader = `
-      uniform float time;
-      attribute float sizes;
-      attribute vec4 shift;
-      varying vec3 vColor;
-      ${shader.vertexShader}
-    `.replace(
-      `gl_PointSize = size;`,
-      `gl_PointSize = size * sizes;`
-    ).replace(
-      `#include <color_vertex>`,
-      `
-      #include <color_vertex>
-      float d = length(abs(position)/vec3(40.,10.,40));
-      vColor = mix(vec3(42,40,154), vec3(209,124,196), d)/255.;
-      `
-    ).replace(
-      `#include <begin_vertex>`,
-      `
-      #include <begin_vertex>
-      float t=time;
-      float a=shift.x+shift.z*t;
-      float b=shift.y+shift.z*t;
-      transformed += vec3(cos(b)*sin(a), cos(a), sin(b)*sin(a))*shift.a;
-      `
-    );
-    shader.fragmentShader = `
-      varying vec3 vColor;
-      ${shader.fragmentShader}
-    `.replace(
-      `vec4 diffuseColor = vec4( diffuse, opacity );`,
-      `vec4 diffuseColor = vec4(vColor, opacity);`
-    );
-  }
-});
-
-const galaxy = new THREE.Points(g,m);
-galaxy.rotation.z = 0.2;
-scene.add(galaxy);
-
 /// ================= SOLAR SYSTEM =================
 const solar = new THREE.Group();
 scene.add(solar);
@@ -145,38 +58,22 @@ scene.add(new THREE.AmbientLight(0x222222));
 
 const planets = [];
 
-function createStarRing(radius, count = 1600){
-  const pos = [];
-
-  for(let i=0;i<count;i++){
-    const a = Math.random()*Math.PI*2;
-    const jitter = (Math.random()-0.5)*0.5;
-
-    pos.push(
-      Math.cos(a)*(radius+jitter),
-      (Math.random()-0.5)*0.15,
-      Math.sin(a)*(radius+jitter)
-    );
-  }
-
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos,3));
-
-  const m = new THREE.PointsMaterial({
-    color:0xffffff,
-    size:0.14,
-    transparent:true,
-    opacity:0.9,
-    blending:THREE.AdditiveBlending,
-    depthWrite:false
-  });
-
-  const ring = new THREE.Points(g,m);
+function orbitRing(radius){
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius-0.03, radius+0.03, 128),
+    new THREE.MeshBasicMaterial({
+      color:0xffffff,
+      transparent:true,
+      opacity:0.25,
+      side:THREE.DoubleSide
+    })
+  );
+  ring.rotation.x = Math.PI/2;
   solar.add(ring);
 }
 
 function addPlanet(size, dist, speed, color){
-  createStarRing(dist);
+  orbitRing(dist);
 
   const pivot = new THREE.Object3D();
   const mesh = new THREE.Mesh(
@@ -207,7 +104,7 @@ renderer.setAnimationLoop(()=>{
   let t = clock.getElapsedTime();
   gu.time.value = t*Math.PI;
 
-  galaxy.rotation.y += 0.0004;
+  galaxy.rotation.y += 0.0008;
 
   planets.forEach(p=>{
     p.rotation.y += p.userData.speed;
