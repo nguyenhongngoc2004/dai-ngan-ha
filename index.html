@@ -2,301 +2,164 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<title>Universe – Artistic</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hyper-Real Galaxy</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 <style>
-body { margin:0; overflow:hidden; background:black; }
-#gestureNote {
-  position:absolute; bottom:20px; left:20px;
-  padding:10px 14px; background:rgba(0,0,0,0.45);
-  color:#fff; font-family:system-ui,-apple-system,BlinkMacSystemFont;
-  font-size:14px; border-radius:12px;
-  backdrop-filter:blur(6px); pointer-events:none;
-  box-shadow:0 0 12px rgba(255,255,255,0.15);
-}
-#handCanvas {
-  position:absolute;
-  bottom:20px;
-  right:20px;
-  width:160px; height:120px;
-  border-radius:12px;
-  opacity:0.75;
-  pointer-events:none;
-  z-index:10;
-}
+  body { margin:0; overflow:hidden; background:black; }
+  #hint {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    color: #fff;
+    font-family: system-ui;
+    opacity: 0.6;
+    font-size: 14px;
+  }
 </style>
 </head>
-<body>
-<div id="gestureNote"></div>
-<video id="video" style="display:none;"></video>
-<canvas id="handCanvas" width="160" height="120"></canvas>
 
-<script>
-// ================= THREE.JS SETUP =================
+<body>
+<div id="hint">🖱 Drag: Rotate · Scroll: Zoom</div>
+
+<script type="module">
+import * as THREE from "https://cdn.skypack.dev/three@0.152.2";
+import { OrbitControls } from "https://cdn.skypack.dev/three@0.152.2/examples/jsm/controls/OrbitControls";
+
+/// ===== SCENE =====
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 2000);
-camera.position.set(0,120,400);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  60, innerWidth / innerHeight, 0.1, 500
+);
+camera.position.set(0, 8, 22);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0xffffff,0.25));
-const galaxy = new THREE.Group();
-scene.add(galaxy);
+/// ===== CONTROLS =====
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.dampingFactor = 0.05;
+controls.minDistance = 8;
+controls.maxDistance = 60;
 
-// Sun
+/// ===== LIGHT =====
+scene.add(new THREE.AmbientLight(0x333333));
+
+const sunLight = new THREE.PointLight(0xffffff, 2.5, 300);
+sunLight.position.set(0, 0, 0);
+scene.add(sunLight);
+
+/// ===== HELPERS =====
+function planetMaterial(color, rough = 1) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: rough,
+    metalness: 0
+  });
+}
+
+function atmosphere(radius, color) {
+  const geo = new THREE.SphereGeometry(radius * 1.04, 32, 32);
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.15,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+/// ===== SUN =====
 const sun = new THREE.Mesh(
-  new THREE.SphereGeometry(6,64,64),
-  new THREE.MeshPhysicalMaterial({
-    color:0xffee88, emissive:0xffcc66, emissiveIntensity:1.5, roughness:0.4
+  new THREE.SphereGeometry(3, 32, 32),
+  new THREE.MeshStandardMaterial({
+    emissive: 0xffcc66,
+    emissiveIntensity: 1.4,
+    color: 0xffee99
   })
 );
-galaxy.add(sun);
+scene.add(sun);
 
-const sunLight = new THREE.PointLight(0xfff2cc,2.5,400);
-sunLight.position.set(0,0,0);
-galaxy.add(sunLight);
-
-// ================= PLANETS =================
+/// ===== PLANETS =====
 const planets = [];
 
-function createPlanet(radius, options={}) {
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: options.color ?? 0xffffff,
-    roughness: options.roughness ?? 0.5,
-    metalness: options.metalness ?? 0.1,
-    emissive: options.emissive ?? 0x000000,
-    emissiveIntensity: options.emissiveIntensity ?? 0.05,
-    clearcoat: options.clearcoat ?? 0.2
-  });
-  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,32,32), mat);
+function addPlanet(size, dist, speed, color, atmoColor) {
+  const pivot = new THREE.Object3D();
 
-  // Atmosphere
-  if(options.atmosphere){
-    const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(radius*1.05,64,64),
-      new THREE.MeshBasicMaterial({color:options.atmosphere,transparent:true,opacity:0.15,blending:THREE.AdditiveBlending})
-    );
-    planet.add(atmo);
+  const planet = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 32, 32),
+    planetMaterial(color)
+  );
+  planet.position.x = dist;
+  pivot.userData.speed = speed;
+  pivot.add(planet);
+
+  if (atmoColor) {
+    planet.add(atmosphere(size, atmoColor));
   }
 
-  // Ring
-  if(options.ring){
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius*1.4,radius*2.2,64),
-      new THREE.MeshBasicMaterial({color:options.ring,transparent:true,opacity:0.5,side:THREE.DoubleSide})
-    );
-    ring.rotation.x=Math.PI/2;
-    planet.add(ring);
-  }
-
-  galaxy.add(planet);
-  planets.push(planet);
-  return planet;
+  scene.add(pivot);
+  planets.push(pivot);
 }
 
-// 9 hành tinh
-createPlanet(1.5,{color:0xaaaaaa});
-createPlanet(2,{color:0xffcc88});
-createPlanet(2.5,{color:0x2266ff,atmosphere:0x66ccff});
-createPlanet(2,{color:0xff5533});
-createPlanet(3,{color:0xffaa55});
-createPlanet(2.5,{color:0xffe0aa,ring:0xffddaa});
-createPlanet(2,{color:0x88ccff,emissive:0x2244ff,emissiveIntensity:0.1});
-createPlanet(1.8,{color:0xaaff77});
-createPlanet(2.2,{color:0xff88ff});
+addPlanet(0.9, 6, 0.02, 0xaaaaaa);                 // Mercury
+addPlanet(1.1, 9, 0.016, 0xffcc88);                // Venus
+addPlanet(1.2, 12, 0.015, 0x2a5cff, 0x66aaff);     // Earth
+addPlanet(1.1, 15, 0.014, 0xff5533);                // Mars
+addPlanet(2.2, 20, 0.01, 0xffaa55);                 // Jupiter
+addPlanet(1.8, 26, 0.008, 0xffe0aa);                // Saturn
+addPlanet(1.5, 32, 0.006, 0x88ccff);                // Uranus
 
-// Quỹ đạo xoắn hình quả trứng
-function arrangePlanetsEgg(){
-  const baseRadius = 20;
-  const radiusStep = 12;
-  const yScale = 0.45; // độ dẹt quả trứng
+/// ===== STARS =====
+const starGeo = new THREE.BufferGeometry();
+const starPos = [];
 
-  planets.forEach((p, i) => {
-    const r = baseRadius + i * radiusStep;
-
-    // góc NGẪU NHIÊN → rải đều, KHÔNG spiral
-    const angle = Math.random() * Math.PI * 2;
-
-    p.position.set(
-      Math.cos(angle) * r,
-      Math.sin(angle) * r * yScale,
-      Math.sin(angle) * r
-    );
-  });
-}
-arrangePlanetsEgg();
-
-// ================= STAR DUST =================
-function createStarTexture(){
-  const size=128;
-  const canvas=document.createElement("canvas");
-  canvas.width=canvas.height=size;
-  const ctx=canvas.getContext("2d");
-  const grad=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  grad.addColorStop(0,"rgba(255,255,255,1)");
-  grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
-  grad.addColorStop(1,"rgba(255,255,255,0)");
-  ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
-  const texture=new THREE.CanvasTexture(canvas);
-  texture.minFilter=THREE.LinearFilter; texture.magFilter=THREE.LinearFilter;
-  return texture;
+for (let i = 0; i < 5000; i++) {
+  starPos.push(
+    (Math.random() - 0.5) * 200,
+    (Math.random() - 0.5) * 200,
+    (Math.random() - 0.5) * 200
+  );
 }
 
-(function createStars(){
-  const count=4000, pos=new Float32Array(count*3);
-  for(let i=0;i<count;i++){
-    const r=Math.random()*120, a=r*0.35;
-    pos[i*3]=Math.cos(a)*r;
-    pos[i*3+1]=(Math.random()-0.5)*20;
-    pos[i*3+2]=Math.sin(a)*r;
-  }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const mat=new THREE.PointsMaterial({
-    size:1.2, map:createStarTexture(),
-    transparent:true, opacity:0.6,
-    blending:THREE.AdditiveBlending,
-    depthWrite:false, sizeAttenuation:false 
-  });
-  scene.add(new THREE.Points(geo,mat));
-})();
-
-// ================= MILKY WAY =================
-function createMilkyWay(){
-  const starCount = 10000, positions=[], colors=[];
-  const arms=4, radius=100, thickness=0.8;
-  for(let i=0;i<starCount;i++){
-    const r=Math.random()*radius;
-    const arm=i%arms;
-    const angle=r*0.07+arm*(Math.PI*2/arms);
-    const spread=1.5;
-    const x=Math.cos(angle)*r+(Math.random()-0.5)*spread;
-    const z=Math.sin(angle)*r+(Math.random()-0.5)*spread;
-    const y=(Math.random()-0.5)*thickness;
-    positions.push(x,y,z);
-    const t=r/radius;
-    const c=new THREE.Color();
-    c.r=1*(1-t)+0.5*t; c.g=0.85*(1-t)+0.8*t; c.b=0.5*(1-t)+1*t;
-    colors.push(c.r,c.g,c.b);
-  }
-  const geo = new THREE.BufferGeometry();
-geo.setAttribute(
-  'position',
-  new THREE.Float32BufferAttribute(positions, 3)
+starGeo.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(starPos, 3)
 );
 
-const mat = new THREE.PointsMaterial({
-  size: 0.22,
-  map: createStarTexture(),
-  color: 0xffffff,          // 🌕 sáng đều
-  transparent: true,
-  opacity: 0.85,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false,
-  sizeAttenuation: false    // 🚀 giảm lag cực mạnh
-});
-const milkyWay = new THREE.Points(geo, mat);
-galaxy.add(milkyWay);
-}
-createMilkyWay();
+const stars = new THREE.Points(
+  starGeo,
+  new THREE.PointsMaterial({ size: 0.3, color: 0xffffff })
+);
+scene.add(stars);
 
-let lastState = "ROTATE";
-// ================= HAND TRACKING =================
-const videoEl=document.getElementById("video");
-const canvasEl=document.getElementById("handCanvas");
-const ctx2=canvasEl.getContext("2d");
-let state="ROTATE", smoothState="ROTATE";
-const noteEl=document.getElementById("gestureNote");
-const stateText={ROTATE:"✋ Xoay tay: Chuyển hành tinh", TREE:"✊ Bung tay: Zoom ra toàn cảnh", PHOTO:"🤏 Nắm tay: Zoom vào hành tinh"};
-
-const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
-
-hands.onResults(results=>{
-  ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
-  if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
-  if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0) return;
-  const lm=results.multiHandLandmarks[0], wrist=lm[0], tips=[8,12,16,20];
-  let open=0; tips.forEach(i=>open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y));
-  const avgOpen=open/tips.length;
-  let newState=lastState;
-  if(avgOpen<0.18) newState="PHOTO";
-  else if(avgOpen>0.28) newState="TREE";
-  else newState="ROTATE";
-  if(newState!==lastState){
-    if(newState==="ROTATE" && lastState!=="ROTATE"){
-      currentPlanetIndex++; if(currentPlanetIndex>=planets.length) currentPlanetIndex=0;
-      moveToPlanet(currentPlanetIndex);
-    }
-    state=newState; lastState=newState;
-  }
-});
-
-let currentPlanetIndex=0;
-let targetCameraPos=camera.position.clone();
-const lookTarget=new THREE.Vector3();
-
-function moveToPlanet(index){
-  currentPlanetIndex=index;
-  if(currentPlanetIndex<0) currentPlanetIndex=planets.length-1;
-  if(currentPlanetIndex>=planets.length) currentPlanetIndex=0;
-  const planetPos=new THREE.Vector3();
-  planets[currentPlanetIndex].getWorldPosition(planetPos);
-  targetCameraPos.copy(planetPos).add(new THREE.Vector3(0,6,14));
-}
-
-let handFrame = 0;
-
-const cameraMP = new Camera(videoEl,{
-  onFrame: async () => {
-    handFrame++;
-    if(handFrame % 3 === 0){
-      await hands.send({ image: videoEl });
-    }
-  },
-  width: 640,
-  height: 480
-});
-cameraMP.start();
-
-// ================= ANIMATE =================
-const initialCameraPos=new THREE.Vector3(0,90,260);
-const galaxyViewCameraPos=new THREE.Vector3(0,110,320);
-
-function animate(){
+/// ===== ANIMATE =====
+function animate() {
   requestAnimationFrame(animate);
 
-  planets.forEach(p=>{ p.rotation.y+=0.005; });
+  sun.rotation.y += 0.002;
 
-  if(state==="PHOTO"){
-    planets[currentPlanetIndex].getWorldPosition(lookTarget);
-    camera.position.lerp(targetCameraPos,0.05);
-  } else if(state==="TREE"){
-    lookTarget.set(0,0,0);
-    camera.position.lerp(galaxyViewCameraPos,0.05);
-  } else {
-    lookTarget.set(0,0,0);
-    camera.position.lerp(initialCameraPos,0.05);
-  }
+  planets.forEach(p => {
+    p.rotation.y += p.userData.speed;
+  });
 
-  camera.lookAt(lookTarget);
-  smoothState=state;
-  galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
-  noteEl.textContent=stateText[smoothState]||"";
-
-  renderer.render(scene,camera);
+  controls.update();
+  renderer.render(scene, camera);
 }
+
 animate();
 
-window.addEventListener("resize", ()=>{
-  camera.aspect=window.innerWidth/window.innerHeight;
+/// ===== RESIZE =====
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
 });
 </script>
 </body>
