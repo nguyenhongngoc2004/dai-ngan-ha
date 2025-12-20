@@ -202,8 +202,10 @@ const mat = new THREE.PointsMaterial({
 });
 const milkyWay = new THREE.Points(geo, mat);
 galaxy.add(milkyWay);
+}
 createMilkyWay();
 
+let lastState = "ROTATE";
 // ================= HAND TRACKING =================
 const videoEl=document.getElementById("video");
 const canvasEl=document.getElementById("handCanvas");
@@ -247,6 +249,8 @@ function moveToPlanet(index){
   planets[currentPlanetIndex].getWorldPosition(planetPos);
   targetCameraPos.copy(planetPos).add(new THREE.Vector3(0,6,14));
 }
+
+let handFrame = 0;
 
 const cameraMP = new Camera(videoEl,{
   onFrame: async () => {
