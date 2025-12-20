@@ -114,13 +114,13 @@ createPlanet(2.2,{color:0xff88ff});
 function arrangePlanetsEgg(){
   const baseRadius = 20;
   const radiusStep = 12;
-  const yScale = 0.45; // độ "dẹt" quả trứng
+  const yScale = 0.45; // độ dẹt quả trứng
 
   planets.forEach((p, i) => {
     const r = baseRadius + i * radiusStep;
 
-    // mỗi hành tinh đứng ở 1 góc khác nhau trên ellipse
-    const angle = i * 0.7;
+    // góc NGẪU NHIÊN → rải đều, KHÔNG spiral
+    const angle = Math.random() * Math.PI * 2;
 
     p.position.set(
       Math.cos(angle) * r,
@@ -161,14 +161,14 @@ function createStarTexture(){
     size:1.2, map:createStarTexture(),
     transparent:true, opacity:0.6,
     blending:THREE.AdditiveBlending,
-    depthWrite:false, sizeAttenuation:true
+    depthWrite:false, sizeAttenuation:false 
   });
   scene.add(new THREE.Points(geo,mat));
 })();
 
 // ================= MILKY WAY =================
 function createMilkyWay(){
-  const starCount=18000, positions=[], colors=[];
+  const starCount = 10000, positions=[], colors=[];
   const arms=4, radius=100, thickness=0.8;
   for(let i=0;i<starCount;i++){
     const r=Math.random()*radius;
@@ -184,17 +184,24 @@ function createMilkyWay(){
     c.r=1*(1-t)+0.5*t; c.g=0.85*(1-t)+0.8*t; c.b=0.5*(1-t)+1*t;
     colors.push(c.r,c.g,c.b);
   }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
-  const mat=new THREE.PointsMaterial({
-    size:0.2, map:createStarTexture(), transparent:true, opacity:0.9,
-    vertexColors:true, blending:THREE.AdditiveBlending,
-    depthWrite:false, sizeAttenuation:true
-  });
-  const milkyWay=new THREE.Points(geo,mat);
-  galaxy.add(milkyWay);
-}
+  const geo = new THREE.BufferGeometry();
+geo.setAttribute(
+  'position',
+  new THREE.Float32BufferAttribute(positions, 3)
+);
+
+const mat = new THREE.PointsMaterial({
+  size: 0.22,
+  map: createStarTexture(),
+  color: 0xffffff,          // 🌕 sáng đều
+  transparent: true,
+  opacity: 0.85,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  sizeAttenuation: false    // 🚀 giảm lag cực mạnh
+});
+const milkyWay = new THREE.Points(geo, mat);
+galaxy.add(milkyWay);
 createMilkyWay();
 
 // ================= HAND TRACKING =================
@@ -241,7 +248,16 @@ function moveToPlanet(index){
   targetCameraPos.copy(planetPos).add(new THREE.Vector3(0,6,14));
 }
 
-const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:videoEl});},width:640,height:480});
+const cameraMP = new Camera(videoEl,{
+  onFrame: async () => {
+    handFrame++;
+    if(handFrame % 3 === 0){
+      await hands.send({ image: videoEl });
+    }
+  },
+  width: 640,
+  height: 480
+});
 cameraMP.start();
 
 // ================= ANIMATE =================
