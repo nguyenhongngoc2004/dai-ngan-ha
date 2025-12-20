@@ -42,8 +42,6 @@ let lastState = "ROTATE";
 // ================= THREE.JS =================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0, 50, 150);
-camera.lookAt(0,0,0);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -52,11 +50,11 @@ scene.add(new THREE.AmbientLight(0xffffff,0.25));
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
+// Sun + light
 const sunLight = new THREE.PointLight(0xfff2cc,2.5,400);
 sunLight.position.set(0,0,0);
 galaxy.add(sunLight);
 
-// Sun with glow
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(6,64,64),
   new THREE.MeshPhysicalMaterial({
@@ -70,7 +68,6 @@ galaxy.add(sun);
 
 // ================= PLANETS =================
 const planets = [];
-
 function createPlanet(radius, options={}){
   const mat = new THREE.MeshPhysicalMaterial({
     color: options.color ?? 0xffffff,
@@ -127,14 +124,14 @@ createPlanet(2, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
 createPlanet(1.8, {color:0xaaff77});
 createPlanet(2.2, {color:0xff88ff});
 
-// 🌟 Sắp xếp hành tinh theo quỹ đạo xoắn hình quả trứng
+// ================= Quỹ đạo xoắn hình quả trứng =================
 function arrangePlanetsEggShape(){
   const spiralRadiusStep = 10;
-  const angleStep = Math.PI * 2 / planets.length;
-  const yScale = 0.4; // tạo hình quả trứng
+  const angleStep = Math.PI * 1.5 / planets.length;
+  const yScale = 0.4;
   planets.forEach((p,i)=>{
     const radius = spiralRadiusStep*(i+1);
-    const angle = i*angleStep*1.5; // xoắn nhẹ
+    const angle = i*angleStep;
     p.position.set(
       Math.cos(angle)*radius,
       Math.sin(angle)*radius*yScale,
@@ -150,14 +147,12 @@ function createStarTexture() {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext("2d");
-
     const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
     grad.addColorStop(0,"rgba(255,255,255,1)");
     grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
     grad.addColorStop(1,"rgba(255,255,255,0)");
     ctx.fillStyle = grad;
     ctx.fillRect(0,0,size,size);
-
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
@@ -188,7 +183,7 @@ function createStarTexture() {
   scene.add(new THREE.Points(geo,mat));
 })();
 
-// Milky Way spiral
+// ================= Milky Way =================
 function createMilkyWay(){
   const starCount=30000,positions=[],colors=[];
   const arms = 4, radius = 100, thickness = 0.8;
@@ -246,7 +241,6 @@ hands.onResults(results=>{
   ctx2.restore();
 
   if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0) return;
-
   const lm=results.multiHandLandmarks[0];
   const wrist=lm[0];
   const tips=[8,12,16,20];
@@ -272,6 +266,7 @@ hands.onResults(results=>{
 
 let currentPlanetIndex=0;
 let targetCameraPos=new THREE.Vector3().copy(camera.position);
+const lookTarget = new THREE.Vector3();
 
 function moveToPlanet(index){
   if(index<0) index=planets.length-1;
@@ -288,11 +283,13 @@ cameraMP.start();
 // ================= ANIMATE =================
 const initialCameraPos = new THREE.Vector3(0, 50, 150);
 const galaxyViewCameraPos = new THREE.Vector3(0,120,400);
+camera.position.copy(initialCameraPos);
 
 function animate(){
   requestAnimationFrame(animate);
 
-  planets.forEach(p=>{ /* static planets, không xoay */ });
+  // xoay hành tinh nhẹ
+  planets.forEach(p=>{ p.rotation.y+=0.005; });
 
   if(state==="PHOTO"){
     planets[currentPlanetIndex].getWorldPosition(lookTarget);
