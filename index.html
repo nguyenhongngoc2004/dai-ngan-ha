@@ -73,7 +73,7 @@ function createPlanet(radius, options={}) {
     emissiveIntensity: options.emissiveIntensity ?? 0.05,
     clearcoat: options.clearcoat ?? 0.2
   });
-  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), mat);
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,32,32), mat);
 
   // Atmosphere
   if(options.atmosphere){
@@ -112,16 +112,20 @@ createPlanet(2.2,{color:0xff88ff});
 
 // Quỹ đạo xoắn hình quả trứng
 function arrangePlanetsEgg(){
-  const spiralRadiusStep = 15;
-  const angleStep = Math.PI * 0.8;
-  const yScale = 0.4;
-  planets.forEach((p,i)=>{
-    const radius = spiralRadiusStep*(i+1);
-    const angle = i*angleStep;
+  const baseRadius = 20;
+  const radiusStep = 12;
+  const yScale = 0.45; // độ "dẹt" quả trứng
+
+  planets.forEach((p, i) => {
+    const r = baseRadius + i * radiusStep;
+
+    // mỗi hành tinh đứng ở 1 góc khác nhau trên ellipse
+    const angle = i * 0.7;
+
     p.position.set(
-      Math.cos(angle)*radius,
-      Math.sin(angle)*radius*yScale,
-      Math.sin(angle)*radius
+      Math.cos(angle) * r,
+      Math.sin(angle) * r * yScale,
+      Math.sin(angle) * r
     );
   });
 }
@@ -144,7 +148,7 @@ function createStarTexture(){
 }
 
 (function createStars(){
-  const count=8000, pos=new Float32Array(count*3);
+  const count=4000, pos=new Float32Array(count*3);
   for(let i=0;i<count;i++){
     const r=Math.random()*120, a=r*0.35;
     pos[i*3]=Math.cos(a)*r;
@@ -164,7 +168,7 @@ function createStarTexture(){
 
 // ================= MILKY WAY =================
 function createMilkyWay(){
-  const starCount=30000, positions=[], colors=[];
+  const starCount=18000, positions=[], colors=[];
   const arms=4, radius=100, thickness=0.8;
   for(let i=0;i<starCount;i++){
     const r=Math.random()*radius;
@@ -241,8 +245,8 @@ const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:vid
 cameraMP.start();
 
 // ================= ANIMATE =================
-const initialCameraPos=new THREE.Vector3(0,120,400);
-const galaxyViewCameraPos=new THREE.Vector3(0,120,400);
+const initialCameraPos=new THREE.Vector3(0,90,260);
+const galaxyViewCameraPos=new THREE.Vector3(0,110,320);
 
 function animate(){
   requestAnimationFrame(animate);
