@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Spiral Galaxy 9 Planets</title>
+<title>Hyper-Real Galaxy</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -37,31 +37,41 @@ body { margin:0; overflow:hidden; background:black; }
 <canvas id="handCanvas" width="160" height="120"></canvas>
 
 <script>
-// ================= THREE.JS SETUP =================
+let lastState = "ROTATE";
+
+// ================= THREE.JS =================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 50, 150);
+camera.lookAt(0,0,0);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-
 scene.add(new THREE.AmbientLight(0xffffff,0.25));
 
 const galaxy = new THREE.Group();
 scene.add(galaxy);
 
-// Sun
+const sunLight = new THREE.PointLight(0xfff2cc,2.5,400);
+sunLight.position.set(0,0,0);
+galaxy.add(sunLight);
+
+// Sun with glow
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(6,64,64),
-  new THREE.MeshPhysicalMaterial({color:0xffee88, emissive:0xffcc66, emissiveIntensity:1.5, roughness:0.4})
+  new THREE.MeshPhysicalMaterial({
+    color:0xffee88,
+    emissive:0xffcc66,
+    emissiveIntensity:1.5,
+    roughness:0.4
+  })
 );
 galaxy.add(sun);
 
 // ================= PLANETS =================
 const planets = [];
-function createPlanet(radius, dist, speed, options={}) {
-  const pivot = new THREE.Object3D();
-  pivot.userData.speed = speed;
 
+function createPlanet(radius, options={}){
   const mat = new THREE.MeshPhysicalMaterial({
     color: options.color ?? 0xffffff,
     roughness: options.roughness ?? 0.5,
@@ -70,17 +80,18 @@ function createPlanet(radius, dist, speed, options={}) {
     emissiveIntensity: options.emissiveIntensity ?? 0.05,
     clearcoat: options.clearcoat ?? 0.2
   });
-
   const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), mat);
-  pivot.userData.planet = planet;
-  planet.position.x = dist;
-  pivot.add(planet);
 
   // Atmosphere
   if(options.atmosphere){
     const atmo = new THREE.Mesh(
       new THREE.SphereGeometry(radius*1.05,64,64),
-      new THREE.MeshBasicMaterial({color: options.atmosphere, transparent:true, opacity:0.15, blending:THREE.AdditiveBlending})
+      new THREE.MeshBasicMaterial({
+        color: options.atmosphere,
+        transparent:true,
+        opacity:0.15,
+        blending:THREE.AdditiveBlending
+      })
     );
     planet.add(atmo);
   }
@@ -89,79 +100,135 @@ function createPlanet(radius, dist, speed, options={}) {
   if(options.ring){
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(radius*1.4, radius*2.2,64),
-      new THREE.MeshBasicMaterial({color:options.ring, transparent:true, opacity:0.5, side:THREE.DoubleSide})
+      new THREE.MeshBasicMaterial({
+        color:options.ring,
+        transparent:true,
+        opacity:0.5,
+        side:THREE.DoubleSide
+      })
     );
     ring.rotation.x = Math.PI/2;
     planet.add(ring);
   }
 
-  galaxy.add(pivot);
-  planets.push(pivot);
-  return pivot;
+  galaxy.add(planet);
+  planets.push(planet);
+  return planet;
 }
 
-// Tạo 9 hành tinh trên 9 vòng
-const planetColors = [0xaaaaaa,0xffcc88,0x2266ff,0xff5533,0xffaa55,0xffe0aa,0x88ccff,0xaaff88,0xff88ff];
-for(let i=0;i<9;i++){
-  createPlanet(2 + i*0.1, 10 + i*6, 0.01 + i*0.002, {color:planetColors[i]});
-}
+// Tạo 9 hành tinh
+createPlanet(1.5, {color:0xaaaaaa});
+createPlanet(2, {color:0xffcc88});
+createPlanet(2.5, {color:0x2266ff, atmosphere:0x66ccff});
+createPlanet(2, {color:0xff5533});
+createPlanet(3, {color:0xffaa55});
+createPlanet(2.5, {color:0xffe0aa, ring:0xffddaa});
+createPlanet(2, {color:0x88ccff, emissive:0x2244ff, emissiveIntensity:0.1});
+createPlanet(1.8, {color:0xaaff77});
+createPlanet(2.2, {color:0xff88ff});
 
-// ================= SPIRAL GALAXY =================
-function createSpiralGalaxy(){
-  const spiralArms = 9;
-  const starsPerArm = 3000;
-  const positions=[], colors=[];
-
-  for(let arm=0; arm<spiralArms; arm++){
-    const radiusBase = 10 + arm*6;
-    for(let i=0; i<starsPerArm; i++){
-      const t = i/starsPerArm;
-      const angle = t*6*Math.PI + arm*(2*Math.PI/spiralArms); // xoắn nhiều vòng
-      const radius = radiusBase + Math.random()*1.5; // nhiễu nhẹ
-      const x = Math.cos(angle)*radius;
-      const z = Math.sin(angle)*radius;
-      const y = (Math.random()-0.5)*0.3;
-      positions.push(x,y,z);
-
-      const c = new THREE.Color();
-      c.r = 1*(1-t) + 0.5*t;
-      c.g = 0.85*(1-t)+0.8*t;
-      c.b = 0.5*(1-t)+1*t;
-      colors.push(c.r,c.g,c.b);
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
-
-  const mat = new THREE.PointsMaterial({
-    size:0.15, map:createStarTexture(), transparent:true, opacity:0.9,
-    vertexColors:true, blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+// 🌟 Sắp xếp hành tinh theo quỹ đạo xoắn hình quả trứng
+function arrangePlanetsEggShape(){
+  const spiralRadiusStep = 10;
+  const angleStep = Math.PI * 2 / planets.length;
+  const yScale = 0.4; // tạo hình quả trứng
+  planets.forEach((p,i)=>{
+    const radius = spiralRadiusStep*(i+1);
+    const angle = i*angleStep*1.5; // xoắn nhẹ
+    p.position.set(
+      Math.cos(angle)*radius,
+      Math.sin(angle)*radius*yScale,
+      Math.sin(angle)*radius
+    );
   });
+}
+arrangePlanetsEggShape();
 
-  const spiral = new THREE.Points(geo, mat);
-  galaxy.add(spiral);
+// ================= STAR DUST =================
+function createStarTexture() {
+    const size = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0,"rgba(255,255,255,1)");
+    grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
+    grad.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,size,size);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
 }
-function createStarTexture(){
-  const size = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const grad = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  grad.addColorStop(0,"rgba(255,255,255,1)");
-  grad.addColorStop(0.4,"rgba(255,255,255,0.6)");
-  grad.addColorStop(1,"rgba(255,255,255,0)");
-  ctx.fillStyle = grad; ctx.fillRect(0,0,size,size);
-  return new THREE.CanvasTexture(canvas);
+
+(function createStars(){
+  const count = 8000;
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const r=Math.random()*120;
+    const a=r*0.35;
+    pos[i*3]=Math.cos(a)*r;
+    pos[i*3+1]=(Math.random()-0.5)*20;
+    pos[i*3+2]=Math.sin(a)*r;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({
+    size:1.2,
+    map:createStarTexture(),
+    transparent:true,
+    opacity:0.6,
+    blending:THREE.AdditiveBlending,
+    depthWrite:false,
+    sizeAttenuation:true
+  });
+  scene.add(new THREE.Points(geo,mat));
+})();
+
+// Milky Way spiral
+function createMilkyWay(){
+  const starCount=30000,positions=[],colors=[];
+  const arms = 4, radius = 100, thickness = 0.8;
+  for(let i=0;i<starCount;i++){
+    const r=Math.random()*radius;
+    const arm=i%arms;
+    const angle=r*0.07+arm*(Math.PI*2/arms);
+    const spread=1.5;
+    const x=Math.cos(angle)*r+(Math.random()-0.5)*spread;
+    const z=Math.sin(angle)*r+(Math.random()-0.5)*spread;
+    const y=(Math.random()-0.5)*thickness;
+    positions.push(x,y,z);
+    const t=r/radius;
+    const c=new THREE.Color();
+    c.r=1*(1-t)+0.5*t; c.g=0.85*(1-t)+0.8*t; c.b=0.5*(1-t)+1*t;
+    colors.push(c.r,c.g,c.b);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  const mat = new THREE.PointsMaterial({
+    size:0.2,
+    map:createStarTexture(),
+    transparent:true,
+    opacity:0.9,
+    vertexColors:true,
+    blending:THREE.AdditiveBlending,
+    depthWrite:false,
+    sizeAttenuation:true
+  });
+  const milkyWay=new THREE.Points(geo,mat);
+  galaxy.add(milkyWay);
 }
-createSpiralGalaxy();
+createMilkyWay();
 
 // ================= HAND TRACKING =================
 const videoEl=document.getElementById("video");
 const canvasEl=document.getElementById("handCanvas");
 const ctx2=canvasEl.getContext("2d");
-let state="ROTATE", lastState="ROTATE", smoothState="ROTATE";
+let state="ROTATE",smoothState="ROTATE";
 const noteEl=document.getElementById("gestureNote");
 const stateText={
   ROTATE:"✋ Xoay tay: Chuyển hành tinh",
@@ -170,19 +237,22 @@ const stateText={
 };
 
 const hands=new Hands({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-hands.setOptions({maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.7});
+hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
 
 hands.onResults(results=>{
+  ctx2.save();
   ctx2.clearRect(0,0,canvasEl.width,canvasEl.height);
   if(results.image) ctx2.drawImage(results.image,0,0,canvasEl.width,canvasEl.height);
+  ctx2.restore();
+
   if(!results.multiHandLandmarks || results.multiHandLandmarks.length===0) return;
 
-  const lm = results.multiHandLandmarks[0];
-  const wrist = lm[0];
+  const lm=results.multiHandLandmarks[0];
+  const wrist=lm[0];
   const tips=[8,12,16,20];
   let open=0;
   tips.forEach(i=>open+=Math.hypot(lm[i].x-wrist.x,lm[i].y-wrist.y));
-  const avgOpen = open/tips.length;
+  const avgOpen=open/tips.length;
 
   let newState=lastState;
   if(avgOpen<0.18) newState="PHOTO";
@@ -195,44 +265,37 @@ hands.onResults(results=>{
       if(currentPlanetIndex>=planets.length) currentPlanetIndex=0;
       moveToPlanet(currentPlanetIndex);
     }
-    state=newState; lastState=newState;
+    state=newState;
+    lastState=newState;
   }
 });
+
+let currentPlanetIndex=0;
+let targetCameraPos=new THREE.Vector3().copy(camera.position);
 
 function moveToPlanet(index){
   if(index<0) index=planets.length-1;
   if(index>=planets.length) index=0;
   currentPlanetIndex=index;
-
   const planetPos=new THREE.Vector3();
-  planets[currentPlanetIndex].userData.planet.getWorldPosition(planetPos);
-  targetCameraPos.copy(planetPos).add(new THREE.Vector3(0,4,12));
+  planets[currentPlanetIndex].getWorldPosition(planetPos);
+  targetCameraPos.copy(planetPos).add(new THREE.Vector3(0,6,14));
 }
 
 const cameraMP=new Camera(videoEl,{onFrame:async()=>{await hands.send({image:videoEl});},width:640,height:480});
 cameraMP.start();
 
 // ================= ANIMATE =================
-const initialCameraPos = new THREE.Vector3(0,50,150);
-const galaxyViewCameraPos = new THREE.Vector3(0,100,200);
-camera.position.copy(initialCameraPos);
-const lookTarget = new THREE.Vector3(0,0,0);
-camera.lookAt(lookTarget);
-let targetCameraPos = initialCameraPos.clone();
-let currentPlanetIndex = 0;
+const initialCameraPos = new THREE.Vector3(0, 50, 150);
+const galaxyViewCameraPos = new THREE.Vector3(0,120,400);
 
 function animate(){
   requestAnimationFrame(animate);
-  sun.rotation.y+=0.003;
 
-  planets.forEach(p=>{
-    p.rotation.y += p.userData.speed;
-    const targetScale = state==="PHOTO"?3:1;
-    p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
-  });
+  planets.forEach(p=>{ /* static planets, không xoay */ });
 
   if(state==="PHOTO"){
-    planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
+    planets[currentPlanetIndex].getWorldPosition(lookTarget);
     camera.position.lerp(targetCameraPos,0.05);
   } else if(state==="TREE"){
     lookTarget.set(0,0,0);
@@ -243,15 +306,16 @@ function animate(){
   }
 
   camera.lookAt(lookTarget);
-  smoothState = state;
+
+  smoothState=state;
   galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
-  noteEl.textContent = stateText[smoothState]||"";
+  noteEl.textContent=stateText[smoothState]||"";
 
   renderer.render(scene,camera);
 }
 animate();
 
-window.addEventListener("resize", ()=>{
+window.addEventListener("resize",()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth,window.innerHeight);
