@@ -194,7 +194,7 @@ const mat=new THREE.PointsMaterial({
 
 function createMilkyWay(){
   const starCount=30000,positions=[],colors=[];
-  const arms = 4, radius = 200, thickness = 0.3;
+  const arms = 4, radius = 70, thickness = 0.8;
   for(let i=0;i<starCount;i++){
     const r=Math.random()*radius;
     const arm=i%arms;
@@ -300,6 +300,7 @@ cameraMP.start();
 
 // Camera lúc load → nhìn toàn cảnh dải ngân hà
 const initialCameraPos = new THREE.Vector3(0, 50, 150);
+const galaxyViewCameraPos = new THREE.Vector3(0, 120, 400); // càng lớn càng thấy toàn bộ galaxy
 camera.position.copy(initialCameraPos);
 
 // LookAt trung tâm dải ngân hà
@@ -317,7 +318,7 @@ function animate(){
 
   planets.forEach(p=>{
     p.rotation.y += p.userData.speed;
-    const targetScale = state==="PHOTO"?3:1;
+    const targetScale = state==="PHOTO"?2:1;
     p.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),0.1);
   });
 
@@ -325,15 +326,17 @@ function animate(){
   if(state==="PHOTO"){
     planets[currentPlanetIndex].userData.planet.getWorldPosition(lookTarget);
     camera.position.lerp(targetCameraPos,0.05);
-  } else { 
+} else if(state==="TREE"){
+    lookTarget.set(0,0,0);
+    camera.position.lerp(new THREE.Vector3(0,120,400),0.05); // zoom ra toàn galaxy
+} else { 
+    lookTarget.set(0,0,0);
     camera.position.lerp(initialCameraPos,0.05);
-  }
-
+}
   camera.lookAt(lookTarget);
 
   smoothState = state;
-  if(smoothState==="HEART") galaxy.scale.lerp(new THREE.Vector3(1.4,1.4,1.4),0.05);
-  else galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
+  galaxy.scale.lerp(new THREE.Vector3(1,1,1),0.05);
 
   noteEl.textContent = stateText[smoothState] || "";
 
