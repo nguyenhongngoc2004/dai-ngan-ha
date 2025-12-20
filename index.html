@@ -25,11 +25,10 @@
 <body>
 <div id="hint">🖱 Drag: Rotate · Scroll: Zoom</div>
 
-<script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js";
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
 
-/// ================= SCENE =================
+<script>
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
@@ -43,22 +42,15 @@ camera.position.set(0, 10, 32);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 1); // ⭐ QUAN TRỌNG
 document.body.appendChild(renderer.domElement);
 
-/// ================= CONTROLS =================
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
-controls.dampingFactor = 0.06;
-controls.minDistance = 10;
-controls.maxDistance = 80;
 
-/// ================= LIGHT =================
 scene.add(new THREE.AmbientLight(0x222222));
-const centerLight = new THREE.PointLight(0xffffff, 2.5, 300);
-centerLight.position.set(0, 0, 0);
-scene.add(centerLight);
+const light = new THREE.PointLight(0xffffff, 2.5, 300);
+scene.add(light);
 
 /// ================= GROUP =================
 const solar = new THREE.Group();
