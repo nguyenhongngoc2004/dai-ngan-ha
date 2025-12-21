@@ -150,19 +150,45 @@ function createStarRing(radius, count = 1800){
   return new THREE.Points(geo, mat);
 }
 
-function addPlanet(size, dist, speed, color){
+function generatePlanetNoise(seed, size = 256, repeat = 4){
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const img = ctx.createImageData(size, size);
+  let rand = seed;
+
+  function random(){
+    rand = (rand * 9301 + 49297) % 233280;
+    return rand / 233280;
+  }
+
+  for(let i=0;i<img.data.length;i+=4){
+    const v = random() * 255;
+    img.data[i] = v;
+    img.data[i+1] = v;
+    img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+
+  ctx.putImageData(img,0,0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+
+  return tex;
+}
+
+function addPlanet(size, dist, speed, color, type = "rock"){
 
   const pivot = new THREE.Object3D();
-
+  
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(size,32,32),
-    new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.6,
-        emissive: color,
-        emissiveIntensity: 0.15
-    })
+  new THREE.SphereGeometry(size, 64, 64),
+  planetMaterial
 );
+
   pivot.add(mesh);
 
   // 🌟 VÒNG SAO
@@ -182,13 +208,13 @@ function addPlanet(size, dist, speed, color){
 }
 
 /// 7 hành tinh
-addPlanet(0.75, 4, 0.003, 0xaaaaaa);
-addPlanet(1.05, 6, 0.0025, 0xffcc88);
-addPlanet(1.2, 8, 0.002, 0x2a5cff);
-addPlanet(0.95, 10, 0.0018, 0xff5533);
-addPlanet(2.1, 14, 0.0012, 0xffaa55);
-addPlanet(1.7, 18, 0.001, 0xffe0aa);
-addPlanet(1.45, 22, 0.0007, 0x88ccff);
+addPlanet(0.75, 4, 0.003, 0xaaaaaa, "rock");
+addPlanet(1.05, 6, 0.0025, 0xffcc88, "rock");
+addPlanet(1.2, 8, 0.002, 0x2a5cff, "ice");
+addPlanet(0.95, 10, 0.0018, 0xff5533, "rock");
+addPlanet(2.1, 14, 0.0012, 0xffaa55, "gas");
+addPlanet(1.7, 18, 0.001, 0xffe0aa, "gas");
+addPlanet(1.45, 22, 0.0007, 0x88ccff, "ice");
 
 /// ================= ANIMATE =================
 const clock = new THREE.Clock();
