@@ -183,12 +183,45 @@ function generatePlanetNoise(seed, size = 256, repeat = 4){
 function addPlanet(size, dist, speed, color, type = "rock"){
 
   const pivot = new THREE.Object3D();
-  
-  const mesh = new THREE.Mesh(
-  new THREE.SphereGeometry(size, 64, 64),
-  planetMaterial
-);
 
+  // ===== MATERIAL THEO TYPE =====
+  let planetMaterial;
+
+  if(type === "rock"){
+    planetMaterial = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.85,
+      metalness: 0.05,
+      normalMap: generatePlanetNoise(Math.random()*9999, 256, 4),
+      normalScale: new THREE.Vector2(0.5, 0.5)
+    });
+  }
+
+  if(type === "ice"){
+    planetMaterial = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.55,
+      metalness: 0.1,
+      normalMap: generatePlanetNoise(Math.random()*9999, 256, 6),
+      normalScale: new THREE.Vector2(0.35, 0.35)
+    });
+  }
+
+  if(type === "gas"){
+    planetMaterial = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.35,
+      metalness: 0.0,
+      emissive: new THREE.Color(color),
+      emissiveIntensity: 0.25
+    });
+  }
+
+  // ===== MESH =====
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 64, 64),
+    planetMaterial
+  );
   pivot.add(mesh);
 
   // 🌟 VÒNG SAO
@@ -199,8 +232,8 @@ function addPlanet(size, dist, speed, color, type = "rock"){
   pivot.userData = {
     speed,
     angle: Math.random() * Math.PI * 2,
-    a: dist * (1 + Math.random()*0.25), // trục lớn
-    b: dist * (0.75 + Math.random()*0.2), // trục nhỏ
+    a: dist * (1 + Math.random()*0.25),
+    b: dist * (0.75 + Math.random()*0.2),
   };
 
   solar.add(pivot);
