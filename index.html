@@ -102,10 +102,6 @@ const clock = new THREE.Clock();
 
 renderer.setAnimationLoop(()=>{
   let t = clock.getElapsedTime();
-  gu.time.value = t*Math.PI;
-
-  galaxy.rotation.y += 0.0008;
-
   planets.forEach(p=>{
     p.rotation.y += p.userData.speed;
   });
