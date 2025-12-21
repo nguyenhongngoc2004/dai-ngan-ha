@@ -67,7 +67,7 @@ const galaxyColors = [
   new THREE.Color(0xcad8ff), // xanh lam nhạt
 ];
 
-function createStarRing(radius, count = 1200){
+function createStarRing(radius, count = 2200){
   const pos = [];
   const colors = [];
 
@@ -79,11 +79,11 @@ function createStarRing(radius, count = 1200){
 
   for(let i=0;i<count;i++){
     const a = Math.random() * Math.PI * 2;
-    const r = radius + (Math.random()-0.5)** 3 * 1.1;
+    const r = radius + (Math.random()-0.5) * 2.2;
 
     pos.push(
       Math.cos(a)*r,
-      (Math.random()-0.5)*0.35, // rất mỏng
+      (Math.random()-0.5)*0.6, // rất mỏng
       Math.sin(a)*r
     );
 
@@ -96,7 +96,7 @@ function createStarRing(radius, count = 1200){
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.12,
+    size: 0.14,
     vertexColors: true,
     transparent: true,
     opacity: 0.6,
@@ -115,13 +115,19 @@ function addPlanet(size, dist, speed, color){
     new THREE.SphereGeometry(size,32,32),
     new THREE.MeshStandardMaterial({ color, roughness:0.8 })
   );
-  mesh.position.x = dist;
   pivot.add(mesh);
 
-  // 🌟 TẠO VÒNG SAO RIÊNG CHO HÀNH TINH
+  // 🌟 VÒNG SAO
   const ring = createStarRing(dist);
   pivot.add(ring);
-  pivot.userData.speed = speed;
+
+  // ====== ELIP DATA ======
+  pivot.userData = {
+    speed,
+    angle: Math.random() * Math.PI * 2,
+    a: dist * (1 + Math.random()*0.25), // trục lớn
+    b: dist * (0.75 + Math.random()*0.2), // trục nhỏ
+  };
 
   solar.add(pivot);
   planets.push(pivot);
@@ -141,12 +147,23 @@ const clock = new THREE.Clock();
 
 renderer.setAnimationLoop(()=>{
   let t = clock.getElapsedTime();
-  planets.forEach(p=>{
-  p.rotation.y += p.userData.speed;
+planets.forEach(p=>{
+  p.userData.angle += p.userData.speed;
+
+  const a = p.userData.a;
+  const b = p.userData.b;
+  const t = p.userData.angle;
+
+  const x = Math.cos(t) * a;
+  const z = Math.sin(t) * b;
+
   p.children.forEach(obj=>{
+    if(obj.isMesh){
+      obj.position.set(x, 0, z);
+    }
     if(obj.isPoints){
-        obj.rotation.y += p.userData.speed * 0.15;
-        obj.material.opacity = 0.45 + Math.sin(clock.getElapsedTime() * 0.6) * 0.1;
+      obj.rotation.y += p.userData.speed * 0.1;
+      obj.material.opacity = 0.45 + Math.sin(clock.getElapsedTime()*0.6)*0.1;
     }
   });
 });
