@@ -60,7 +60,7 @@ const planets = [];
 function createStarRing(radius, count = 1400){
   const pos = [];
 
-  for(let i=0;i<count;i++){
+  for(let i = 0; i < count; i++){
     const a = Math.random() * Math.PI * 2;
     const jitter = (Math.random() - 0.5) * 0.45;
 
@@ -72,15 +72,33 @@ function createStarRing(radius, count = 1400){
   }
 
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
 
   const mat = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 0.14,
+    size: 0.18,                 // to hơn chút cho mịn
     transparent: true,
-    opacity: 0.85,
+    opacity: 1,
     blending: THREE.AdditiveBlending,
-    depthWrite: false
+    depthWrite: false,
+    onBeforeCompile: shader => {
+      shader.fragmentShader = `
+        ${shader.fragmentShader}
+      `.replace(
+        `#include <clipping_planes_fragment>`,
+        `#include <clipping_planes_fragment>
+          float d = length(gl_PointCoord - 0.5);
+          if (d > 0.5) discard;
+        `
+      ).replace(
+        `vec4 diffuseColor = vec4( diffuse, opacity );`,
+        `
+        float d = length(gl_PointCoord - 0.5);
+        float alpha = smoothstep(0.5, 0.15, d);
+        vec4 diffuseColor = vec4(diffuse, alpha);
+        `
+      );
+    }
   });
 
   const ring = new THREE.Points(geo, mat);
