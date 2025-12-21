@@ -120,8 +120,6 @@ function addPlanet(size, dist, speed, color){
 
   // 🌟 TẠO VÒNG SAO RIÊNG CHO HÀNH TINH
   const ring = createStarRing(dist);
-  ring.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.25;
-  ring.rotation.z = (Math.random() - 0.5) * 0.2;
   pivot.add(ring);
   pivot.userData.speed = speed;
 
