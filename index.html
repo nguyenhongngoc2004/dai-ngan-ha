@@ -59,47 +59,54 @@ scene.add(new THREE.AmbientLight(0x222222));
 const planets = [];
 function createStarRing(radius, count = 1400){
   const pos = [];
+  const colors = [];
+
+  // palette galaxy
+  const galaxyColors = [
+    new THREE.Color(0x6a5acd), // tím xanh
+    new THREE.Color(0xc77dff), // tím hồng
+    new THREE.Color(0xffb3c6), // hồng nhạt
+    new THREE.Color(0x9bf6ff), // xanh nhạt
+    new THREE.Color(0xffffff)  // sao trắng
+  ];
 
   for(let i = 0; i < count; i++){
     const a = Math.random() * Math.PI * 2;
     const jitter = (Math.random() - 0.5) * 0.45;
 
-    pos.push(
-      Math.cos(a) * (radius + jitter),
-      (Math.random() - 0.5) * 0.12,
-      Math.sin(a) * (radius + jitter)
+    const x = Math.cos(a) * (radius + jitter);
+    const y = (Math.random() - 0.5) * 0.6;
+    const z = Math.sin(a) * (radius + jitter);
+
+    pos.push(x, y, z);
+
+    // chọn màu ngẫu nhiên + trộn nhẹ
+    const baseColor = galaxyColors[Math.floor(Math.random() * galaxyColors.length)];
+    const mixed = baseColor.clone().lerp(
+      new THREE.Color(0xffffff),
+      Math.random() * 0.4
     );
+
+    colors.push(mixed.r, mixed.g, mixed.b);
   }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
   const mat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 0.18,                 // to hơn chút cho mịn
+    size: 0.22,
+    vertexColors: true,
     transparent: true,
-    opacity: 1,
+    opacity: 0.85,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    onBeforeCompile: shader => {
-      shader.fragmentShader = `
-        ${shader.fragmentShader}
-      `.replace(
-        `#include <clipping_planes_fragment>`,
-        `#include <clipping_planes_fragment>
-          float d = length(gl_PointCoord - 0.5);
-          if (d > 0.5) discard;
-        `
-      ).replace(
-        `vec4 diffuseColor = vec4( diffuse, opacity );`,
-        `
-        float d = length(gl_PointCoord - 0.5);
-        float alpha = smoothstep(0.5, 0.15, d);
-        vec4 diffuseColor = vec4(diffuse, alpha);
-        `
-      );
-    }
+    depthTest: false
   });
+
+  const ring = new THREE.Points(geo, mat);
+  solar.add(ring);
+}
 
   const ring = new THREE.Points(geo, mat);
   solar.add(ring);
