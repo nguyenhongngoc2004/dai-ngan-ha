@@ -61,54 +61,44 @@ function createStarRing(radius, count = 1400){
   const pos = [];
   const colors = [];
 
-  // palette galaxy
-  const galaxyColors = [
-    new THREE.Color(0x6a5acd), // tím xanh
-    new THREE.Color(0xc77dff), // tím hồng
-    new THREE.Color(0xffb3c6), // hồng nhạt
-    new THREE.Color(0x9bf6ff), // xanh nhạt
-    new THREE.Color(0xffffff)  // sao trắng
+  const palette = [
+    new THREE.Color(0x6a5acd),
+    new THREE.Color(0xc77dff),
+    new THREE.Color(0xffb3c6),
+    new THREE.Color(0x9bf6ff),
+    new THREE.Color(0xffffff)
   ];
 
   for(let i = 0; i < count; i++){
     const a = Math.random() * Math.PI * 2;
-    const jitter = (Math.random() - 0.5) * 0.45;
+    const r = radius + (Math.random() - 0.5) * 0.6;
 
-    const x = Math.cos(a) * (radius + jitter);
-    const y = (Math.random() - 0.5) * 0.6;
-    const z = Math.sin(a) * (radius + jitter);
-
-    pos.push(x, y, z);
-
-    // chọn màu ngẫu nhiên + trộn nhẹ
-    const baseColor = galaxyColors[Math.floor(Math.random() * galaxyColors.length)];
-    const mixed = baseColor.clone().lerp(
-      new THREE.Color(0xffffff),
-      Math.random() * 0.4
+    pos.push(
+      Math.cos(a) * r,
+      (Math.random() - 0.5) * 0.8,
+      Math.sin(a) * r
     );
 
-    colors.push(mixed.r, mixed.g, mixed.b);
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    colors.push(c.r, c.g, c.b);
   }
 
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.22,
+    size: 0.35,
     vertexColors: true,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.9,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     depthTest: false
   });
 
   const ring = new THREE.Points(geo, mat);
-  solar.add(ring);
-}
-
-  const ring = new THREE.Points(geo, mat);
+  ring.rotation.x = Math.PI / 2; // 🔥 DÒNG QUYẾT ĐỊNH
   solar.add(ring);
 }
 
