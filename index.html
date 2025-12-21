@@ -126,7 +126,7 @@ function createStarRing(radius, count = 1800){
 
     pos.push(
       Math.cos(a)*r,
-      (Math.random()-0.5)*0.45, // rất mỏng
+      (Math.random()-0.5)*0.3, // rất mỏng
       Math.sin(a)*r
     );
 
@@ -139,10 +139,10 @@ function createStarRing(radius, count = 1800){
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.13,
+    size: 0.08,
     vertexColors: true,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.38,
     blending: THREE.AdditiveBlending,
     depthWrite: false
   });
@@ -156,8 +156,13 @@ function addPlanet(size, dist, speed, color){
 
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(size,32,32),
-    new THREE.MeshStandardMaterial({ color, roughness:0.8 })
-  );
+    new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.6,
+        emissive: color,
+        emissiveIntensity: 0.15
+    })
+);
   pivot.add(mesh);
 
   // 🌟 VÒNG SAO
@@ -177,13 +182,13 @@ function addPlanet(size, dist, speed, color){
 }
 
 /// 7 hành tinh
-addPlanet(0.6, 4, 0.003, 0xaaaaaa);
-addPlanet(0.9, 6, 0.0025, 0xffcc88);
-addPlanet(1.0, 8, 0.002, 0x2a5cff);
-addPlanet(0.8, 10, 0.0018, 0xff5533);
-addPlanet(1.8, 14, 0.0012, 0xffaa55);
-addPlanet(1.4, 18, 0.001, 0xffe0aa);
-addPlanet(1.2, 22, 0.0007, 0x88ccff);
+addPlanet(0.75, 4, 0.003, 0xaaaaaa);
+addPlanet(1.05, 6, 0.0025, 0xffcc88);
+addPlanet(1.2, 8, 0.002, 0x2a5cff);
+addPlanet(0.95, 10, 0.0018, 0xff5533);
+addPlanet(2.1, 14, 0.0012, 0xffaa55);
+addPlanet(1.7, 18, 0.001, 0xffe0aa);
+addPlanet(1.45, 22, 0.0007, 0x88ccff);
 
 /// ================= ANIMATE =================
 const clock = new THREE.Clock();
