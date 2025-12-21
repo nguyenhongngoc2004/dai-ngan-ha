@@ -66,28 +66,30 @@ const galaxyColors = [
   new THREE.Color(0xcad8ff), // xanh lam nhạt
 ];
 
-function createStarRing(radius, count = 1000){
+function createStarRing(radius, count = 1200){
   const pos = [];
   const colors = [];
 
-  for(let i = 0; i < count; i++){
-    const angle = Math.random() * Math.PI * 2;
-    const r = radius + (Math.random() - 0.5) * 0.45;
+  const palette = [
+    new THREE.Color("#9bf6ff"),
+    new THREE.Color("#cdb4db"),
+    new THREE.Color("#ffc8dd"),
+    new THREE.Color("#bde0fe"),
+    new THREE.Color("#ffffff")
+  ];
+
+  for(let i=0;i<count;i++){
+    const a = Math.random() * Math.PI * 2;
+    const r = radius + (Math.random()-0.5)*0.35;
 
     pos.push(
-      Math.cos(angle) * r,
-      (Math.random() - 0.5) * 0.25,
-      Math.sin(angle) * r
+      Math.cos(a)*r,
+      (Math.random()-0.5)*0.15,
+      Math.sin(a)*r
     );
 
-    const c = galaxyColors[Math.floor(Math.random()*galaxyColors.length)];
-    const brightness = 0.7 + Math.random()*0.3;
-
-    colors.push(
-      c.r * brightness,
-      c.g * brightness,
-      c.b * brightness
-    );
+    const c = palette[Math.floor(Math.random()*palette.length)];
+    colors.push(c.r,c.g,c.b);
   }
 
   const geo = new THREE.BufferGeometry();
@@ -100,23 +102,17 @@ function createStarRing(radius, count = 1000){
     transparent: true,
     opacity: 0.85,
     blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    depthTest: false
+    depthWrite: false
   });
 
-  const ring = new THREE.Points(geo, mat);
-  ring.rotation.x = Math.PI / 2;
-  solar.add(ring);
+  return new THREE.Points(geo, mat);
 }
 
 const orbitRadii = [4, 6, 8, 10, 14, 18, 22];
 
 function addPlanet(size, dist, speed, color){
-  const pivot = new THREE.Object3D();
 
-  // 🌌 vòng sao đi chung với hành tinh
-  const starRing = createStarRing(dist);
-  pivot.add(starRing);
+  const pivot = new THREE.Object3D();
 
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(size,32,32),
@@ -125,7 +121,13 @@ function addPlanet(size, dist, speed, color){
   mesh.position.x = dist;
   pivot.add(mesh);
 
+  // 🌟 TẠO VÒNG SAO RIÊNG CHO HÀNH TINH
+  const ring = createStarRing(dist);
+  ring.rotation.x = Math.PI / 2;
+  pivot.add(ring);
+
   pivot.userData.speed = speed;
+
   solar.add(pivot);
   planets.push(pivot);
 }
