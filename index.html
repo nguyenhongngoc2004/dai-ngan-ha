@@ -26,6 +26,9 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+
 window.addEventListener("resize", ()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
@@ -57,30 +60,34 @@ solar.add(sun);
 scene.add(new THREE.AmbientLight(0x222222));
 
 const planets = [];
-function createStarRing(radius, count = 1400){
+const galaxyColors = [
+  new THREE.Color(0xffffff), // trắng
+  new THREE.Color(0xe6ddff), // tím rất nhạt
+  new THREE.Color(0xcad8ff), // xanh lam nhạt
+];
+
+function createStarRing(radius, count = 1000){
   const pos = [];
   const colors = [];
 
-  const palette = [
-    new THREE.Color(0x6a5acd),
-    new THREE.Color(0xc77dff),
-    new THREE.Color(0xffb3c6),
-    new THREE.Color(0x9bf6ff),
-    new THREE.Color(0xffffff)
-  ];
-
   for(let i = 0; i < count; i++){
-    const a = Math.random() * Math.PI * 2;
-    const r = radius + (Math.random() - 0.5) * 0.6;
+    const angle = Math.random() * Math.PI * 2;
+    const r = radius + (Math.random() - 0.5) * 0.45;
 
     pos.push(
-      Math.cos(a) * r,
-      (Math.random() - 0.5) * 0.8,
-      Math.sin(a) * r
+      Math.cos(angle) * r,
+      (Math.random() - 0.5) * 0.25,
+      Math.sin(angle) * r
     );
 
-    const c = palette[Math.floor(Math.random()*palette.length)];
-    colors.push(c.r, c.g, c.b);
+    const c = galaxyColors[Math.floor(Math.random()*galaxyColors.length)];
+    const brightness = 0.7 + Math.random()*0.3;
+
+    colors.push(
+      c.r * brightness,
+      c.g * brightness,
+      c.b * brightness
+    );
   }
 
   const geo = new THREE.BufferGeometry();
@@ -88,34 +95,37 @@ function createStarRing(radius, count = 1400){
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colors,3));
 
   const mat = new THREE.PointsMaterial({
-    size: 0.35,
+    size: 0.18,
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.85,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     depthTest: false
   });
 
   const ring = new THREE.Points(geo, mat);
-  ring.rotation.x = Math.PI / 2; // 🔥 DÒNG QUYẾT ĐỊNH
+  ring.rotation.x = Math.PI / 2;
   solar.add(ring);
 }
 
 const orbitRadii = [4, 6, 8, 10, 14, 18, 22];
-orbitRadii.forEach(r => createStarRing(r));
 
 function addPlanet(size, dist, speed, color){
-
   const pivot = new THREE.Object3D();
+
+  // 🌌 vòng sao đi chung với hành tinh
+  const starRing = createStarRing(dist);
+  pivot.add(starRing);
+
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(size,32,32),
     new THREE.MeshStandardMaterial({ color, roughness:0.8 })
   );
   mesh.position.x = dist;
   pivot.add(mesh);
-  pivot.userData.speed = speed;
 
+  pivot.userData.speed = speed;
   solar.add(pivot);
   planets.push(pivot);
 }
