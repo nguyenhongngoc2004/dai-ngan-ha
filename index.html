@@ -150,7 +150,7 @@ const glowMaterial = new THREE.SpriteMaterial({
   opacity: 0.6
 });
 const glow = new THREE.Sprite(glowMaterial);
-glow.scale.set(12,12,1); // tăng scale để bao quanh mặt trời
+glow.scale.set(6,6,1); // tăng scale để bao quanh mặt trời
 sun.add(glow);
 
 scene.add(new THREE.AmbientLight(0x222222));
@@ -250,10 +250,9 @@ renderer.setAnimationLoop(()=>{
   sun.rotation.y += 0.00025;
 
   // 🌟 Glow plasma nhấp nháy
-  glow.material.opacity = Math.min(Math.max(0, 0.4 + Math.sin(t * 2) * 0.2), 1);
-
+  glow.material.opacity = 0.4 + Math.sin(t*2)*0.2;
   // Cập nhật hành tinh
-  planets.forEach(p=>{
+  planets.forEach(p=> {
     p.userData.angle += p.userData.speed;
 
     const a = p.userData.a;
