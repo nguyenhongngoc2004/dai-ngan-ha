@@ -178,16 +178,17 @@ const sunSurface = new THREE.Mesh(
     transparent: true,
     opacity: 0.55,
 
-    roughness: 0.95,                 // phũ hơn
+    roughness: 1.0,
     metalness: 0.0,
 
-    normalMap: generatePlanetNoise(2025, 512, 3),
-    normalScale: new THREE.Vector2(0.35, 0.35),
+    normalMap: generatePlanetNoise(2025, 512, 2),
+    normalScale: new THREE.Vector2(0.15, 0.15),
 
-    roughnessMap: sunSpotTex,         // 🌑 sunspot làm bề mặt nhám
-    emissiveMap: sunSpotTex,          // 🌑 giảm phát sáng
-    emissive: new THREE.Color(0.25,0.15,0.05),
-    emissiveIntensity: 0.5
+    roughnessMap: sunSpotTex,
+    emissiveMap: sunSpotTex,
+
+    emissive: new THREE.Color(0.35,0.18,0.05),
+    emissiveIntensity: 0.35
   })
 );
 solar.add(sunSurface);
