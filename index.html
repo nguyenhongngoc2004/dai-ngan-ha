@@ -101,12 +101,12 @@ function generateSunHaloTexture(size = 256){
   const ctx = canvas.getContext("2d");
 
   const gradient = ctx.createRadialGradient(
-    size/2, size/2, 0,
-    size/2, size/2, size/2
+    size/2, size/2, 0,  // tâm, radius trong
+    size/2, size/2, size/2 // tâm, radius ngoài
   );
-  gradient.addColorStop(0, "rgba(255, 244, 54, 0.8)");  // vàng sáng ở tâm
-  gradient.addColorStop(0.5, "rgba(255, 244, 54, 0.4)");
-  gradient.addColorStop(1, "rgba(255, 244, 54, 0)");     // ngoài trong suốt
+  gradient.addColorStop(0, "rgba(255,244,54,0.8)");  // vàng sáng ở tâm
+  gradient.addColorStop(0.5, "rgba(255,244,54,0.4)");
+  gradient.addColorStop(1, "rgba(255,244,54,0)");    // ngoài trong suốt
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0,0,size,size);
@@ -129,34 +129,15 @@ const sun = new THREE.Mesh(
 solar.add(sun);
 
 const sunHaloMaterial = new THREE.SpriteMaterial({
-  map: generateSunHaloTexture(),      // dùng texture tròn
-  color: 0xffffff,                     // màu cộng thêm
-  blending: THREE.AdditiveBlending,    // cộng màu để rực
-  transparent: true,
-  opacity: 0.6
-});
-
-const sunHalo = new THREE.Sprite(sunHaloMaterial);
-sunHalo.scale.set(12,12,1); // lớn hơn mặt trời để halo tỏa ra
-sun.add(sunHalo);            // gắn vào sun để halo xoay cùng
-
-
-// ================== VẦNG SÁNG MẶT TRỜI ==================
-const sunGlowMaterial = new THREE.SpriteMaterial({
-  map: generateSunTexture(256), // dùng texture plasma đã tạo
-  color: 0xfff436,               // vàng sáng
+  map: generateSunHaloTexture(),
+  color: 0xffffff,
   blending: THREE.AdditiveBlending,
   transparent: true,
   opacity: 0.6
 });
-
-const sunGlow = new THREE.Sprite(sunGlowMaterial);
-
-// scale lớn hơn mặt trời để tạo halo
-sunGlow.scale.set(10, 10, 1);
-
-// gắn vào sun, sẽ theo mặt trời xoay
-sun.add(sunGlow);
+const sunHalo = new THREE.Sprite(sunHaloMaterial);
+sunHalo.scale.set(12,12,1); // lớn hơn mặt trời
+sun.add(sunHalo);
 
 // ================== GLOW CHO MẶT TRỜI ==================
 const glowMaterial = new THREE.SpriteMaterial({
@@ -271,9 +252,6 @@ renderer.setAnimationLoop(()=>{
 
   // Halo nhấp nháy nhẹ
   sunHalo.material.opacity = 0.5 + Math.sin(t * 1.5) * 0.25;
-
-  // Glow plasma (nếu bạn có)
-  glow.material.opacity = 0.5 + Math.sin(t * 1.5) * 0.25;
 
   // Cập nhật hành tinh
   planets.forEach(p=>{
