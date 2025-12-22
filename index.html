@@ -88,16 +88,20 @@ controls.enablePan = false;
 const solar = new THREE.Group();
 scene.add(solar);
 
-const sunLight = new THREE.PointLight(0xffffff, 1.6, 300);
+const sunLight = new THREE.PointLight(
+  new THREE.Color(1.0, 0.9, 0.7),
+  1.8,
+  300
+);
 solar.add(sunLight);
 
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(2.6, 64, 64),
   new THREE.MeshStandardMaterial({
-    color: new THREE.Color(1.0, 0.97, 0.88),   // trắng pha vàng rất nhẹ
-    emissive: new THREE.Color(1.0, 0.8, 0.45),
-    emissiveIntensity: 1.0,
-    roughness: 0.55,
+    color: new THREE.Color(1.0, 0.78, 0.35),   // vàng đậm
+    emissive: new THREE.Color(1.0, 0.6, 0.15), // vàng nóng
+    emissiveIntensity: 1.25,
+    roughness: 0.65,   // PHŨ
     metalness: 0.0
   })
 );
@@ -133,20 +137,62 @@ function generatePlanetNoise(seed, size = 256, repeat = 4){
   return tex;
 }
 
+function generateSunSpotTexture(size = 512, spotCount = 12){
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  // nền xám (không trắng)
+  ctx.fillStyle = "rgb(180,180,180)";
+  ctx.fillRect(0,0,size,size);
+
+  for(let i=0;i<spotCount;i++){
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = size * (0.04 + Math.random()*0.08);
+
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,"rgba(40,40,40,0.85)");
+    g.addColorStop(0.4,"rgba(60,60,60,0.5)");
+    g.addColorStop(1,"rgba(180,180,180,0)");
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1.5,1.5);
+
+  return tex;
+}
+
+const sunSpotTex = generateSunSpotTexture(512, 14);
+
 const sunSurface = new THREE.Mesh(
   new THREE.SphereGeometry(2.62, 64, 64),
   new THREE.MeshStandardMaterial({
-    color: new THREE.Color(1.0, 0.98, 0.92),
+    color: new THREE.Color(1.0, 0.85, 0.45),
     transparent: true,
-    opacity: 0.65,
-    normalMap: generatePlanetNoise(9999, 512, 5),
-    normalScale: new THREE.Vector2(0.9, 0.9),
-    roughness: 0.85
+    opacity: 0.55,
+
+    roughness: 0.95,                 // phũ hơn
+    metalness: 0.0,
+
+    normalMap: generatePlanetNoise(2025, 512, 3),
+    normalScale: new THREE.Vector2(0.35, 0.35),
+
+    roughnessMap: sunSpotTex,         // 🌑 sunspot làm bề mặt nhám
+    emissiveMap: sunSpotTex,          // 🌑 giảm phát sáng
+    emissive: new THREE.Color(0.25,0.15,0.05),
+    emissiveIntensity: 0.5
   })
 );
 solar.add(sunSurface);
 
-scene.add(new THREE.AmbientLight(0x222222));
+scene.add(new THREE.AmbientLight(0x1a1a1a));
 
 const planets = [];
 const galaxyColors = [
@@ -272,8 +318,8 @@ renderer.setAnimationLoop(() => {
   const elapsed = clock.getElapsedTime();
 
   // ☀️ MẶT TRỜI CHUYỂN ĐỘNG BỀ MẶT
-  sunSurface.rotation.y += 0.0006;
-  sunSurface.rotation.x += 0.0002;
+  sunSurface.rotation.y += 0.00018;
+  sunSurface.rotation.x += 0.0009;
 
   // 🪐 HÀNH TINH + VÒNG SAO
   planets.forEach(p => {
