@@ -116,14 +116,14 @@ function generateSunPlasmaTexture(size = 256){
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
 
-  // Gradient tròn từ vàng đậm tâm -> trong suốt
+  // Tạo gradient tròn từ vàng sang trong suốt
   const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  gradient.addColorStop(0, "rgba(255,244,54,0.8)");  // tâm vàng đậm
-  gradient.addColorStop(0.5, "rgba(255,244,54,0.4)"); // mềm
-  gradient.addColorStop(1, "rgba(255,244,54,0)");    // rìa trong suốt
+  gradient.addColorStop(0, "rgba(255,244,54,0.6)");  // vàng sáng ở tâm
+  gradient.addColorStop(0.7, "rgba(255,244,54,0.2)"); // mềm mại ở giữa
+  gradient.addColorStop(1, "rgba(255,244,54,0)");     // trong suốt ở rìa
 
   ctx.fillStyle = gradient;
-  ctx.fillRect(0,0,size,size);
+  ctx.fillRect(0, 0, size, size);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -142,15 +142,18 @@ const sun = new THREE.Mesh(
 );
 solar.add(sun);
 
+// Tạo sprite glow plasma
 const glowMaterial = new THREE.SpriteMaterial({
   map: generateSunPlasmaTexture(256),
-  color: 0xfff436,
+  color: 0xffffff,               // để gradient quyết định màu
   blending: THREE.AdditiveBlending,
   transparent: true,
   opacity: 0.6
 });
+glowMaterial.map.needsUpdate = true;
+
 const glow = new THREE.Sprite(glowMaterial);
-glow.scale.set(6,6,1); // tăng scale để bao quanh mặt trời
+glow.scale.set(8, 8, 1); // điều chỉnh kích thước phù hợp
 sun.add(glow);
 
 scene.add(new THREE.AmbientLight(0x222222));
