@@ -71,6 +71,8 @@ document.body.appendChild(renderer.domElement);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.9;
 
+const clock = new THREE.Clock(); // 🌟 Thêm ở đây
+
 window.addEventListener("resize", ()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
