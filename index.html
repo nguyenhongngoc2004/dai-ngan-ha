@@ -88,25 +88,19 @@ controls.enablePan = false;
 const solar = new THREE.Group();
 scene.add(solar);
 
-const sunLight = new THREE.PointLight(
-  new THREE.Color(1.0, 0.96, 0.85), // trắng hơi vàng
-  3.5,
-  300
-);
+const sunLight = new THREE.PointLight(0xffffff, 2.2, 300);
 solar.add(sunLight);
 
+// 👉 Thêm ở đây:
 function generateSunHaloTexture(size = 256){
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
 
-  const gradient = ctx.createRadialGradient(
-    size/2, size/2, 0,  // tâm, radius trong
-    size/2, size/2, size/2 // tâm, radius ngoài
-  );
-  gradient.addColorStop(0, "rgba(255,244,54,0.8)");  // vàng sáng ở tâm
+  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  gradient.addColorStop(0, "rgba(255,244,54,0.8)");
   gradient.addColorStop(0.5, "rgba(255,244,54,0.4)");
-  gradient.addColorStop(1, "rgba(255,244,54,0)");    // ngoài trong suốt
+  gradient.addColorStop(1, "rgba(255,244,54,0)");
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0,0,size,size);
@@ -116,18 +110,43 @@ function generateSunHaloTexture(size = 256){
   return tex;
 }
 
+function generateSunPlasmaTexture(size = 256){
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  // nền vàng nhạt
+  ctx.fillStyle = "#fff436";
+  ctx.fillRect(0,0,size,size);
+
+  for(let i=0;i<3000;i++){
+    const x = Math.random()*size;
+    const y = Math.random()*size;
+    const r = Math.random()*2;
+    ctx.fillStyle = `rgba(255,244,54,${Math.random()*0.08})`;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(2.6, 48, 48),
   new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xfff436),          // 🌟 đổi màu vàng sáng
-    emissive: new THREE.Color(0xfff436),       // phát sáng cùng màu
-    emissiveIntensity: 3.5,                     // tăng cường độ phát sáng
-    roughness: 0.4,                             // giảm roughness để rực hơn
+    color: 0xfff436,           // màu vàng rực
+    emissive: 0xfff436,        // phát sáng cùng màu
+    emissiveIntensity: 3.5,    // tăng cường độ phát sáng
+    roughness: 0.4,
     metalness: 0.0
   })
 );
 solar.add(sun);
 
+// 👉 Thêm ở đây:
 const sunHaloMaterial = new THREE.SpriteMaterial({
   map: generateSunHaloTexture(),
   color: 0xffffff,
@@ -136,20 +155,18 @@ const sunHaloMaterial = new THREE.SpriteMaterial({
   opacity: 0.6
 });
 const sunHalo = new THREE.Sprite(sunHaloMaterial);
-sunHalo.scale.set(12,12,1); // lớn hơn mặt trời
+sunHalo.scale.set(12,12,1);
 sun.add(sunHalo);
 
-// ================== GLOW CHO MẶT TRỜI ==================
 const glowMaterial = new THREE.SpriteMaterial({
-  map: generateSunTexture(256),
-  color: 0xfff436,               // cùng vàng sáng
+  map: generateSunPlasmaTexture(256),
+  color: 0xfff436,
   blending: THREE.AdditiveBlending,
   transparent: true,
   opacity: 0.6
 });
-
 const glow = new THREE.Sprite(glowMaterial);
-glow.scale.set(6, 6, 1);
+glow.scale.set(6,6,1);
 sun.add(glow);
 
 scene.add(new THREE.AmbientLight(0x222222));
@@ -241,32 +258,37 @@ addPlanet(2.1, 14, 0.0012, 0xffaa55);
 addPlanet(1.7, 18, 0.001, 0xffe0aa);
 addPlanet(1.45, 22, 0.0007, 0x88ccff);
 
-/// ================= ANIMATE =================
-const clock = new THREE.Clock();
-
+/// ================= ANIMATION LOOP =================
 renderer.setAnimationLoop(()=>{
-  let t = clock.getElapsedTime();
+  const t = clock.getElapsedTime(); // 🌟 chỉ khai báo 1 lần
 
-  // Mặt trời xoay nhẹ
+  // 🌞 Xoay mặt trời
   sun.rotation.y += 0.00025;
 
-  // Halo nhấp nháy nhẹ
+  // 🌟 Halo nhấp nháy
   sunHalo.material.opacity = 0.5 + Math.sin(t * 1.5) * 0.25;
+
+  // 🌟 Glow plasma nhấp nháy
+  glow.material.opacity = 0.4 + Math.sin(t * 2) * 0.2;
 
   // Cập nhật hành tinh
   planets.forEach(p=>{
     p.userData.angle += p.userData.speed;
+
     const a = p.userData.a;
     const b = p.userData.b;
     const angle = p.userData.angle;
-    const x = Math.cos(angle)*a;
-    const z = Math.sin(angle)*b;
+
+    const x = Math.cos(angle) * a;
+    const z = Math.sin(angle) * b;
 
     p.children.forEach(obj=>{
-      if(obj.isMesh) obj.position.set(x, 0, z);
+      if(obj.isMesh){
+        obj.position.set(x, 0, z);
+      }
       if(obj.isPoints){
-        obj.rotation.y += p.userData.speed*0.1;
-        obj.material.opacity = 0.45 + Math.sin(clock.getElapsedTime()*0.6)*0.1;
+        obj.rotation.y += p.userData.speed * 0.1;
+        obj.material.opacity = 0.45 + Math.sin(t*0.6)*0.1;
       }
     });
   });
