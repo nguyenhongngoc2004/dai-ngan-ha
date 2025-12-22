@@ -116,14 +116,17 @@ function generateSunPlasmaTexture(size = 256){
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
 
-  // Tạo gradient tròn từ vàng sang trong suốt
+  // Xóa nền (mặc định là trong suốt)
+  ctx.clearRect(0,0,size,size);
+
+  // Gradient tròn mềm mại
   const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  gradient.addColorStop(0, "rgba(255,244,54,0.6)");  // vàng sáng ở tâm
-  gradient.addColorStop(0.7, "rgba(255,244,54,0.2)"); // mềm mại ở giữa
-  gradient.addColorStop(1, "rgba(255,244,54,0)");     // trong suốt ở rìa
+  gradient.addColorStop(0, "rgba(255,244,54,0.6)");
+  gradient.addColorStop(0.7, "rgba(255,244,54,0.2)");
+  gradient.addColorStop(1, "rgba(255,244,54,0)");
 
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0,0,size,size);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -133,8 +136,8 @@ function generateSunPlasmaTexture(size = 256){
 const sun = new THREE.Mesh(
   new THREE.SphereGeometry(2.6, 48, 48),
   new THREE.MeshStandardMaterial({
-    color: 0xfff436,           // màu vàng rực
-    emissive: 0xfff436,        // phát sáng cùng màu
+    color: 0xfff737,           // màu vàng rực #fff737
+    emissive: 0xfff737,        // phát sáng cùng màu
     emissiveIntensity: 3.5,    // tăng cường độ phát sáng
     roughness: 0.4,
     metalness: 0.0
@@ -145,10 +148,11 @@ solar.add(sun);
 // Tạo sprite glow plasma
 const glowMaterial = new THREE.SpriteMaterial({
   map: generateSunPlasmaTexture(256),
-  color: 0xffffff,               // để gradient quyết định màu
+  color: 0xffffff,
   blending: THREE.AdditiveBlending,
   transparent: true,
-  opacity: 0.6
+  opacity: 0.6,
+  depthWrite: false // tránh che vật phía sau
 });
 glowMaterial.map.needsUpdate = true;
 
