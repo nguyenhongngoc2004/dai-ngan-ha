@@ -89,87 +89,43 @@ const solar = new THREE.Group();
 scene.add(solar);
 
 const sunLight = new THREE.PointLight(
-  new THREE.Color(1.0, 0.9, 0.7),
-  1.8,
+  new THREE.Color(1.0, 0.96, 0.85), // trắng hơi vàng
+  2.6,
   300
 );
 solar.add(sunLight);
 
-function addSunSpot(){
-  const spot = new THREE.Mesh(
-    new THREE.CircleGeometry(0.16, 32),
-    new THREE.MeshBasicMaterial({
-      color: 0x442200,
-      transparent: true,
-      opacity: 0.28
-    })
-  );
-
-  const phi = Math.random() * Math.PI;
-  const theta = Math.random() * Math.PI * 2;
-  const r = 2.601;
-
-  spot.position.set(
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.cos(phi),
-    r * Math.sin(phi) * Math.sin(theta)
-  );
-
-  spot.lookAt(0,0,0);
-  sun.add(spot);
-}
-
-// tạo 6–8 sunspot
-for(let i=0;i<5;i++) addSunSpot();
-
-function generatePlanetNoise(seed, size = 256, repeat = 4){
+function generateSunTexture(size = 512){
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
 
-  const img = ctx.createImageData(size, size);
-  let rand = seed;
-
-  function random(){
-    rand = (rand * 9301 + 49297) % 233280;
-    return rand / 233280;
-  }
-
-  for(let i=0;i<img.data.length;i+=4){
-    const v = random() * 255;
-    img.data[i] = v;
-    img.data[i+1] = v;
-    img.data[i+2] = v;
-    img.data[i+3] = 255;
-  }
-
-  ctx.putImageData(img,0,0);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeat, repeat);
-
-  return tex;
-}
-
-function generateSunSpotTexture(size = 512, spotCount = 12){
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  // nền xám (không trắng)
-  ctx.fillStyle = "rgb(180,180,180)";
+  // nền vàng nhạt (không trắng)
+  ctx.fillStyle = "rgb(255, 210, 120)";
   ctx.fillRect(0,0,size,size);
 
-  for(let i=0;i<spotCount;i++){
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = size * (0.04 + Math.random()*0.08);
+  // vân plasma loang
+  for(let i=0;i<8000;i++){
+    const x = Math.random()*size;
+    const y = Math.random()*size;
+    const r = Math.random()*2.2;
+
+    ctx.fillStyle = `rgba(255,160,60,${Math.random()*0.08})`;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // sunspot (đốm tối)
+  for(let i=0;i<8;i++){
+    const x = Math.random()*size;
+    const y = Math.random()*size;
+    const r = size*(0.04+Math.random()*0.05);
 
     const g = ctx.createRadialGradient(x,y,0,x,y,r);
-    g.addColorStop(0,"rgba(40,40,40,0.85)");
-    g.addColorStop(0.4,"rgba(60,60,60,0.5)");
-    g.addColorStop(1,"rgba(180,180,180,0)");
+    g.addColorStop(0,"rgba(60,40,20,0.7)");
+    g.addColorStop(0.5,"rgba(100,70,30,0.4)");
+    g.addColorStop(1,"rgba(255,210,120,0)");
 
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -178,15 +134,20 @@ function generateSunSpotTexture(size = 512, spotCount = 12){
   }
 
   const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1.5,1.5);
-
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-const sunSpotTex = generateSunSpotTexture(512, 14);
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(2.6, 64, 64),
+  new THREE.MeshBasicMaterial({
+    map: generateSunTexture(512),
+    color: new THREE.Color(1.0, 0.92, 0.65)
+  })
+);
+solar.add(sun);
 
-scene.add(new THREE.AmbientLight(0x1a1a1a));
+scene.add(new THREE.AmbientLight(0x222222));
 
 const planets = [];
 const galaxyColors = [
@@ -235,72 +196,19 @@ function createStarRing(radius, count = 1800){
   return new THREE.Points(geo, mat);
 }
 
-function generateSunTexture(size = 512){
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  const grd = ctx.createRadialGradient(
-    size/2, size/2, size*0.15,
-    size/2, size/2, size*0.5
-  );
-
-  grd.addColorStop(0, "#fff7cc");   // lõi trắng vàng
-  grd.addColorStop(0.4, "#ffcc66"); // vàng
-  grd.addColorStop(0.75, "#ff9933");// cam
-  grd.addColorStop(1, "#cc6600");   // rìa tối
-
-  ctx.fillStyle = grd;
-  ctx.fillRect(0,0,size,size);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.colorSpace = THREE.SRGBColorSpace;
-
-  return tex;
-}
-
-function addPlanet(size, dist, speed, color, type = "rock"){
+function addPlanet(size, dist, speed, color){
 
   const pivot = new THREE.Object3D();
 
-  // ===== MATERIAL THEO TYPE =====
-  let planetMaterial;
-
-  if(type === "rock"){
-    planetMaterial = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.85,
-      metalness: 0.05,
-    });
-  }
-
-  if(type === "ice"){
-    planetMaterial = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.55,
-      metalness: 0.1,
-      normalMap: generatePlanetNoise(Math.random()*9999, 256, 6),
-      normalScale: new THREE.Vector2(0.35, 0.35)
-    });
-  }
-
-  if(type === "gas"){
-    planetMaterial = new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.35,
-      metalness: 0.0,
-      emissive: new THREE.Color(color),
-      emissiveIntensity: 0.25
-    });
-  }
-
-  // ===== MESH =====
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(size, 64, 64),
-    planetMaterial
-  );
+    new THREE.SphereGeometry(size,32,32),
+    new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.6,
+        emissive: color,
+        emissiveIntensity: 0.15
+    })
+);
   pivot.add(mesh);
 
   // 🌟 VÒNG SAO
@@ -311,8 +219,8 @@ function addPlanet(size, dist, speed, color, type = "rock"){
   pivot.userData = {
     speed,
     angle: Math.random() * Math.PI * 2,
-    a: dist * (1 + Math.random()*0.25),
-    b: dist * (0.75 + Math.random()*0.2),
+    a: dist * (1 + Math.random()*0.25), // trục lớn
+    b: dist * (0.75 + Math.random()*0.2), // trục nhỏ
   };
 
   solar.add(pivot);
@@ -320,51 +228,47 @@ function addPlanet(size, dist, speed, color, type = "rock"){
 }
 
 /// 7 hành tinh
-addPlanet(0.38, 4, 0.003, 0xaaaaaa, "rock"); // Mercury
-addPlanet(0.95, 6, 0.0025, 0xffcc88, "rock"); // Venus
-addPlanet(1.0,  8, 0.002,  0x2a5cff, "ice");  // Earth
-addPlanet(0.53,10, 0.0018, 0xff5533, "rock"); // Mars
-
-addPlanet(3.6, 14, 0.0012, 0xffaa55, "gas"); // Jupiter
-addPlanet(3.0, 18, 0.001,  0xffe0aa, "gas"); // Saturn
-addPlanet(2.1, 22, 0.0007, 0x88ccff, "ice"); // Uranus
-addPlanet(2.0, 26, 0.0005, 0x4466ff, "ice"); // Neptune
+addPlanet(0.75, 4, 0.003, 0xaaaaaa);
+addPlanet(1.05, 6, 0.0025, 0xffcc88);
+addPlanet(1.2, 8, 0.002, 0x2a5cff);
+addPlanet(0.95, 10, 0.0018, 0xff5533);
+addPlanet(2.1, 14, 0.0012, 0xffaa55);
+addPlanet(1.7, 18, 0.001, 0xffe0aa);
+addPlanet(1.45, 22, 0.0007, 0x88ccff);
 
 /// ================= ANIMATE =================
 const clock = new THREE.Clock();
 
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop(()=>{
+  let t = clock.getElapsedTime();
 
-  const elapsed = clock.getElapsedTime();
+   // ☀️ MẶT TRỜI XOAY RẤT NHẸ (NHƯ NASA)
+  sun.rotation.y += 0.00025;
+  
+planets.forEach(p=>{
+  p.userData.angle += p.userData.speed;
 
-  // 🪐 HÀNH TINH + VÒNG SAO
-  planets.forEach(p => {
-    p.userData.angle += p.userData.speed;
+  const a = p.userData.a;
+  const b = p.userData.b;
+  const t = p.userData.angle;
 
-    const a = p.userData.a;
-    const b = p.userData.b;
-    const t = p.userData.angle;
+  const x = Math.cos(t) * a;
+  const z = Math.sin(t) * b;
 
-    const x = Math.cos(t) * a;
-    const z = Math.sin(t) * b;
-
-    p.children.forEach(obj => {
-      if (obj.isMesh) {
-        obj.position.set(x, 0, z);
-      }
-
-      if (obj.isPoints) {
-        obj.rotation.y += p.userData.speed * 0.1;
-        obj.material.opacity =
-          0.45 + Math.sin(elapsed * 0.6) * 0.1;
-      }
-    });
+  p.children.forEach(obj=>{
+    if(obj.isMesh){
+      obj.position.set(x, 0, z);
+    }
+    if(obj.isPoints){
+      obj.rotation.y += p.userData.speed * 0.1;
+      obj.material.opacity = 0.45 + Math.sin(clock.getElapsedTime()*0.6)*0.1;
+    }
   });
-
-  controls.update();
-  renderer.render(scene, camera);
 });
 
+  controls.update();
+  renderer.render(scene,camera);
+});
 </script>
 </body>
 </html>
