@@ -92,14 +92,83 @@ const sunLight = new THREE.PointLight(0xffffff, 2.2, 300);
 solar.add(sunLight);
 
 const sun = new THREE.Mesh(
-  new THREE.SphereGeometry(2.6,32,32),
+  new THREE.SphereGeometry(2.6, 64, 64),
   new THREE.MeshStandardMaterial({
-    emissive:0xffcc66,
-    emissiveIntensity:1.4,
-    color:0xffee99
+    color: 0xffffff,                 // trắng thật
+    emissive: 0xffffff,
+    emissiveIntensity: 1.1,
+    roughness: 0.25,
+    metalness: 0.0
   })
 );
 solar.add(sun);
+
+function generatePlanetNoise(seed, size = 256, repeat = 4){
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const img = ctx.createImageData(size, size);
+  let rand = seed;
+
+  function random(){
+    rand = (rand * 9301 + 49297) % 233280;
+    return rand / 233280;
+  }
+
+  for(let i=0;i<img.data.length;i+=4){
+    const v = random() * 255;
+    img.data[i] = v;
+    img.data[i+1] = v;
+    img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+
+  ctx.putImageData(img,0,0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeat, repeat);
+
+  return tex;
+}
+
+const sunSurface = new THREE.Mesh(
+  new THREE.SphereGeometry(2.62, 64, 64),
+  new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.9,
+    normalMap: generatePlanetNoise(12345, 512, 6),
+    normalScale: new THREE.Vector2(1.2, 1.2),
+    roughness: 0.8
+  })
+);
+solar.add(sunSurface);
+
+const innerCorona = new THREE.Mesh(
+  new THREE.SphereGeometry(2.95, 64, 64),
+  new THREE.MeshBasicMaterial({
+    color: 0xfff1cc,       // trắng hơi vàng
+    transparent: true,
+    opacity: 0.35,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  })
+);
+solar.add(innerCorona);
+
+const outerCorona = new THREE.Mesh(
+  new THREE.SphereGeometry(3.4, 64, 64),
+  new THREE.MeshBasicMaterial({
+    color: 0xff88cc,       // hồng plasma
+    transparent: true,
+    opacity: 0.18,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  })
+);
+solar.add(outerCorona);
 
 scene.add(new THREE.AmbientLight(0x222222));
 
@@ -148,36 +217,6 @@ function createStarRing(radius, count = 1800){
   });
 
   return new THREE.Points(geo, mat);
-}
-
-function generatePlanetNoise(seed, size = 256, repeat = 4){
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-
-  const img = ctx.createImageData(size, size);
-  let rand = seed;
-
-  function random(){
-    rand = (rand * 9301 + 49297) % 233280;
-    return rand / 233280;
-  }
-
-  for(let i=0;i<img.data.length;i+=4){
-    const v = random() * 255;
-    img.data[i] = v;
-    img.data[i+1] = v;
-    img.data[i+2] = v;
-    img.data[i+3] = 255;
-  }
-
-  ctx.putImageData(img,0,0);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeat, repeat);
-
-  return tex;
 }
 
 function addPlanet(size, dist, speed, color, type = "rock"){
@@ -252,32 +291,63 @@ addPlanet(1.45, 22, 0.0007, 0x88ccff, "ice");
 /// ================= ANIMATE =================
 const clock = new THREE.Clock();
 
-renderer.setAnimationLoop(()=>{
-  let t = clock.getElapsedTime();
-planets.forEach(p=>{
-  p.userData.angle += p.userData.speed;
+innerCorona.userData.baseScale = 1;
+outerCorona.userData.baseScale = 1;
 
-  const a = p.userData.a;
-  const b = p.userData.b;
-  const t = p.userData.angle;
+renderer.setAnimationLoop(() => {
 
-  const x = Math.cos(t) * a;
-  const z = Math.sin(t) * b;
+  const elapsed = clock.getElapsedTime();
 
-  p.children.forEach(obj=>{
-    if(obj.isMesh){
-      obj.position.set(x, 0, z);
-    }
-    if(obj.isPoints){
-      obj.rotation.y += p.userData.speed * 0.1;
-      obj.material.opacity = 0.45 + Math.sin(clock.getElapsedTime()*0.6)*0.1;
-    }
+  // ☀️ MẶT TRỜI CHUYỂN ĐỘNG BỀ MẶT
+  sunSurface.rotation.y += 0.0006;
+  sunSurface.rotation.x += 0.0002;
+
+  // 🔥 corona dao động nhẹ
+innerCorona.scale.setScalar(
+  innerCorona.userData.baseScale *
+  (1 + Math.sin(elapsed * 1.5) * 0.01)
+);
+
+outerCorona.scale.setScalar(
+  outerCorona.userData.baseScale *
+  (1 + Math.sin(elapsed * 1.1 + 2) * 0.03)
+);
+
+// 🌈 đổi màu rất nhẹ theo thời gian (NASA multi-wavelength)
+outerCorona.material.color.setHSL(
+  0.97 + Math.sin(elapsed * 0.25) * 0.015,
+  0.75,
+  0.62
+);
+
+  // 🪐 HÀNH TINH + VÒNG SAO
+  planets.forEach(p => {
+    p.userData.angle += p.userData.speed;
+
+    const a = p.userData.a;
+    const b = p.userData.b;
+    const t = p.userData.angle;
+
+    const x = Math.cos(t) * a;
+    const z = Math.sin(t) * b;
+
+    p.children.forEach(obj => {
+      if (obj.isMesh) {
+        obj.position.set(x, 0, z);
+      }
+
+      if (obj.isPoints) {
+        obj.rotation.y += p.userData.speed * 0.1;
+        obj.material.opacity =
+          0.45 + Math.sin(elapsed * 0.6) * 0.1;
+      }
+    });
   });
-});
 
   controls.update();
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 });
+
 </script>
 </body>
 </html>
