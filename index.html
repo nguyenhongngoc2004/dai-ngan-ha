@@ -108,7 +108,6 @@ function generateSunHaloTexture(size = 256){
   ctx.fillRect(0,0,size,size);
 
   const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
@@ -117,19 +116,14 @@ function generateSunPlasmaTexture(size = 256){
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext("2d");
 
-  // nền vàng nhạt
-  ctx.fillStyle = "#fff436";
-  ctx.fillRect(0,0,size,size);
+  // Gradient tròn từ vàng đậm tâm -> trong suốt
+  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  gradient.addColorStop(0, "rgba(255,244,54,0.8)");  // tâm vàng đậm
+  gradient.addColorStop(0.5, "rgba(255,244,54,0.4)"); // mềm
+  gradient.addColorStop(1, "rgba(255,244,54,0)");    // rìa trong suốt
 
-  for(let i=0;i<3000;i++){
-    const x = Math.random()*size;
-    const y = Math.random()*size;
-    const r = Math.random()*2;
-    ctx.fillStyle = `rgba(255,244,54,${Math.random()*0.08})`;
-    ctx.beginPath();
-    ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fill();
-  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0,0,size,size);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -148,18 +142,6 @@ const sun = new THREE.Mesh(
 );
 solar.add(sun);
 
-// 👉 Thêm ở đây:
-const sunHaloMaterial = new THREE.SpriteMaterial({
-  map: generateSunHaloTexture(),
-  color: 0xffffff,
-  blending: THREE.AdditiveBlending,
-  transparent: true,
-  opacity: 0.6
-});
-const sunHalo = new THREE.Sprite(sunHaloMaterial);
-sunHalo.scale.set(12,12,1);
-sun.add(sunHalo);
-
 const glowMaterial = new THREE.SpriteMaterial({
   map: generateSunPlasmaTexture(256),
   color: 0xfff436,
@@ -168,7 +150,7 @@ const glowMaterial = new THREE.SpriteMaterial({
   opacity: 0.6
 });
 const glow = new THREE.Sprite(glowMaterial);
-glow.scale.set(6,6,1);
+glow.scale.set(12,12,1); // tăng scale để bao quanh mặt trời
 sun.add(glow);
 
 scene.add(new THREE.AmbientLight(0x222222));
@@ -267,11 +249,8 @@ renderer.setAnimationLoop(()=>{
   // 🌞 Xoay mặt trời
   sun.rotation.y += 0.00025;
 
-  // 🌟 Halo nhấp nháy
-  sunHalo.material.opacity = 0.5 + Math.sin(t * 1.5) * 0.25;
-
   // 🌟 Glow plasma nhấp nháy
-  glow.material.opacity = 0.4 + Math.sin(t * 2) * 0.2;
+  glow.material.opacity = Math.min(Math.max(0, 0.4 + Math.sin(t * 2) * 0.2), 1);
 
   // Cập nhật hành tinh
   planets.forEach(p=>{
